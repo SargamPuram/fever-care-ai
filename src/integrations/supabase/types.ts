@@ -14,7 +14,235 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          alert_type: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          message: string
+          patient_id: string | null
+          severity: string
+        }
+        Insert: {
+          alert_type: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          patient_id?: string | null
+          severity: string
+        }
+        Update: {
+          alert_type?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          patient_id?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          language: string | null
+          patient_id: string | null
+          role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          patient_id?: string | null
+          role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          language?: string | null
+          patient_id?: string | null
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      devices: {
+        Row: {
+          bluetooth_id: string | null
+          created_at: string | null
+          device_name: string
+          device_type: string
+          id: string
+          is_connected: boolean | null
+          last_sync: string | null
+          patient_id: string | null
+        }
+        Insert: {
+          bluetooth_id?: string | null
+          created_at?: string | null
+          device_name: string
+          device_type: string
+          id?: string
+          is_connected?: boolean | null
+          last_sync?: string | null
+          patient_id?: string | null
+        }
+        Update: {
+          bluetooth_id?: string | null
+          created_at?: string | null
+          device_name?: string
+          device_type?: string
+          id?: string
+          is_connected?: boolean | null
+          last_sync?: string | null
+          patient_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      patients: {
+        Row: {
+          age: number | null
+          created_at: string | null
+          full_name: string
+          gender: string | null
+          id: string
+          location: Json | null
+          phone: string | null
+          risk_score: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          age?: number | null
+          created_at?: string | null
+          full_name: string
+          gender?: string | null
+          id?: string
+          location?: Json | null
+          phone?: string | null
+          risk_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          age?: number | null
+          created_at?: string | null
+          full_name?: string
+          gender?: string | null
+          id?: string
+          location?: Json | null
+          phone?: string | null
+          risk_score?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      symptoms: {
+        Row: {
+          created_at: string | null
+          id: string
+          notes: string | null
+          patient_id: string | null
+          recorded_at: string | null
+          severity: number | null
+          symptom_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          recorded_at?: string | null
+          severity?: number | null
+          symptom_type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          patient_id?: string | null
+          recorded_at?: string | null
+          severity?: number | null
+          symptom_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "symptoms_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      temperature_readings: {
+        Row: {
+          created_at: string | null
+          device_id: string | null
+          id: string
+          patient_id: string | null
+          recorded_at: string | null
+          temperature: number
+        }
+        Insert: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          patient_id?: string | null
+          recorded_at?: string | null
+          temperature: number
+        }
+        Update: {
+          created_at?: string | null
+          device_id?: string | null
+          id?: string
+          patient_id?: string | null
+          recorded_at?: string | null
+          temperature?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "temperature_readings_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
