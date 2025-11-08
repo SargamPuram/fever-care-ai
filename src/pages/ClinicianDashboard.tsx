@@ -15,6 +15,7 @@ import {
   Clock,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import OutbreakMap from "@/components/OutbreakMap";
 
 const patients = [
   {
@@ -206,14 +207,13 @@ const ClinicianDashboard = () => {
 
         {/* Outbreak Heatmap Preview */}
         <Card className="mt-8 p-6 border-2 border-border animate-slide-up">
-          <h2 className="text-xl font-bold mb-4">Geographic Outbreak Distribution</h2>
-          <div className="h-64 bg-muted rounded-lg flex items-center justify-center">
-            <div className="text-center text-muted-foreground">
-              <MapPin className="h-16 w-16 mx-auto mb-2 opacity-50" />
-              <p>Interactive heatmap visualization</p>
-              <p className="text-sm">Coming soon with real-time outbreak data</p>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Geographic Outbreak Distribution</h2>
+            <Button onClick={() => navigate('/heatmap')} variant="outline" size="sm">
+              View Full Map
+            </Button>
           </div>
+          <OutbreakMap height="400px" zoom={5} />
         </Card>
       </main>
     </div>

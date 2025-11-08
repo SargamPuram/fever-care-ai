@@ -4,38 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, ZoomIn, ZoomOut } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-interface OutbreakData {
-  location: string;
-  cases: number;
-  severity: "low" | "medium" | "high";
-  coordinates: { lat: number; lng: number };
-}
-
-const mockOutbreaks: OutbreakData[] = [
-  { location: "Delhi NCR", cases: 245, severity: "high", coordinates: { lat: 28.7041, lng: 77.1025 } },
-  { location: "Mumbai", cases: 189, severity: "medium", coordinates: { lat: 19.076, lng: 72.8777 } },
-  { location: "Bangalore", cases: 156, severity: "medium", coordinates: { lat: 12.9716, lng: 77.5946 } },
-  { location: "Chennai", cases: 98, severity: "low", coordinates: { lat: 13.0827, lng: 80.2707 } },
-  { location: "Kolkata", cases: 123, severity: "medium", coordinates: { lat: 22.5726, lng: 88.3639 } },
-];
+import OutbreakMap, { mockOutbreaks } from "@/components/OutbreakMap";
 
 export default function Heatmap() {
   const navigate = useNavigate();
-  const [zoom, setZoom] = useState(1);
-
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high":
-        return "bg-alert-critical";
-      case "medium":
-        return "bg-alert-warning";
-      case "low":
-        return "bg-alert-info";
-      default:
-        return "bg-gray-500";
-    }
-  };
+  const [zoom, setZoom] = useState(5);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-medical-light to-background">
@@ -49,14 +22,15 @@ export default function Heatmap() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setZoom(Math.max(0.5, zoom - 0.25))}
+              onClick={() => setZoom(Math.max(4, zoom - 1))}
             >
               <ZoomOut className="h-4 w-4" />
             </Button>
+            <span className="flex items-center px-3 text-sm font-medium">Zoom: {zoom}</span>
             <Button
               variant="outline"
               size="icon"
-              onClick={() => setZoom(Math.min(2, zoom + 0.25))}
+              onClick={() => setZoom(Math.min(10, zoom + 1))}
             >
               <ZoomIn className="h-4 w-4" />
             </Button>
@@ -70,42 +44,11 @@ export default function Heatmap() {
               Fever Outbreak Heatmap
             </CardTitle>
             <CardDescription>
-              Geographic visualization of fever cases across regions
+              Interactive geographic visualization of fever cases across India
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div
-              className="relative bg-muted/30 rounded-lg overflow-hidden"
-              style={{ height: "500px", transform: `scale(${zoom})`, transformOrigin: "center" }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-medical-light/20 to-transparent">
-                {mockOutbreaks.map((outbreak, index) => (
-                  <div
-                    key={index}
-                    className="absolute animate-pulse-slow cursor-pointer group"
-                    style={{
-                      left: `${(outbreak.coordinates.lng - 68) * 10}%`,
-                      top: `${(35 - outbreak.coordinates.lat) * 20}%`,
-                    }}
-                  >
-                    <div
-                      className={`w-12 h-12 rounded-full ${getSeverityColor(
-                        outbreak.severity
-                      )} opacity-60 flex items-center justify-center text-white font-bold`}
-                    >
-                      {outbreak.cases}
-                    </div>
-                    <div className="absolute hidden group-hover:block bg-background border border-border rounded-lg p-3 shadow-lg -translate-x-1/2 -translate-y-full mb-2 left-1/2 whitespace-nowrap z-10">
-                      <p className="font-semibold">{outbreak.location}</p>
-                      <p className="text-sm text-muted-foreground">Cases: {outbreak.cases}</p>
-                      <Badge variant={outbreak.severity === "high" ? "destructive" : "secondary"}>
-                        {outbreak.severity}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <OutbreakMap height="600px" zoom={zoom} />
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               {mockOutbreaks.map((outbreak, index) => (
