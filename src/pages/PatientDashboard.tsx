@@ -15,7 +15,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const temperatureData = [
   { time: "6AM", temp: 98.2 },
@@ -28,6 +28,7 @@ const temperatureData = [
 ];
 
 const PatientDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("home");
   const currentTemp = 98.9;
   const feverStatus = currentTemp > 100.4 ? "high" : currentTemp > 99.5 ? "moderate" : currentTemp > 98.6 ? "mild" : "normal";
@@ -134,12 +135,12 @@ const PatientDashboard = () => {
 
             {/* Quick Actions */}
             <div className="grid grid-cols-2 gap-4">
-              <Card className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in" onClick={() => setActiveTab("log")}>
+              <Card className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in" onClick={() => navigate("/symptom-log")}>
                 <FileText className="h-8 w-8 text-primary mb-2" />
                 <h3 className="font-semibold mb-1">Log Symptoms</h3>
                 <p className="text-xs text-muted-foreground">Record how you feel</p>
               </Card>
-              <Card className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in" onClick={() => setActiveTab("chat")}>
+              <Card className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in" onClick={() => navigate("/chatbot")}>
                 <MessageSquare className="h-8 w-8 text-primary mb-2" />
                 <h3 className="font-semibold mb-1">AI Assistant</h3>
                 <p className="text-xs text-muted-foreground">Get health guidance</p>
@@ -203,26 +204,49 @@ const PatientDashboard = () => {
       <nav className="fixed bottom-0 left-0 right-0 bg-card border-t border-border shadow-elevated">
         <div className="container mx-auto px-4">
           <div className="flex justify-around py-3">
-            {[
-              { id: "home", icon: Home, label: "Home" },
-              { id: "log", icon: FileText, label: "Logs" },
-              { id: "chat", icon: MessageSquare, label: "Chat" },
-              { id: "alerts", icon: Bell, label: "Alerts" },
-              { id: "profile", icon: User, label: "Profile" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === tab.id
-                    ? "text-primary bg-primary/10"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <tab.icon className="h-5 w-5" />
-                <span className="text-xs font-medium">{tab.label}</span>
-              </button>
-            ))}
+            <button
+              onClick={() => setActiveTab("home")}
+              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === "home"
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Home className="h-5 w-5" />
+              <span className="text-xs font-medium">Home</span>
+            </button>
+            <button
+              onClick={() => navigate("/symptom-log")}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <FileText className="h-5 w-5" />
+              <span className="text-xs font-medium">Logs</span>
+            </button>
+            <button
+              onClick={() => navigate("/chatbot")}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <MessageSquare className="h-5 w-5" />
+              <span className="text-xs font-medium">Chat</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("alerts")}
+              className={`flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors ${
+                activeTab === "alerts"
+                  ? "text-primary bg-primary/10"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Bell className="h-5 w-5" />
+              <span className="text-xs font-medium">Alerts</span>
+            </button>
+            <button
+              onClick={() => navigate("/device-setup")}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <User className="h-5 w-5" />
+              <span className="text-xs font-medium">Devices</span>
+            </button>
           </div>
         </div>
       </nav>

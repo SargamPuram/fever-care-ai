@@ -14,7 +14,7 @@ import {
   Thermometer,
   Clock,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const patients = [
   {
@@ -56,6 +56,7 @@ const patients = [
 ];
 
 const ClinicianDashboard = () => {
+  const navigate = useNavigate();
   const getStatusColor = (status: string) => {
     switch (status) {
       case "high": return "destructive";
@@ -130,7 +131,7 @@ const ClinicianDashboard = () => {
             <div className="text-sm text-muted-foreground">High Risk Cases</div>
           </Card>
 
-          <Card className="p-6 border-2 border-border hover-lift animate-scale-in" style={{ animationDelay: '0.3s' }}>
+          <Card className="p-6 border-2 border-border hover-lift animate-scale-in cursor-pointer" style={{ animationDelay: '0.3s' }} onClick={() => navigate('/heatmap')}>
             <div className="flex items-center justify-between mb-4">
               <MapPin className="h-8 w-8 text-primary" />
               <Button variant="ghost" size="sm" className="text-xs">View Map</Button>
