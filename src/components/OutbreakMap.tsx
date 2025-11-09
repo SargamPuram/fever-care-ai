@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
 import { Badge } from "@/components/ui/badge";
 
 interface OutbreakData {
@@ -54,6 +53,7 @@ export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapP
   return (
     <div style={{ height, width: "100%" }} className="rounded-lg overflow-hidden border-2 border-border">
       <MapContainer
+        key={`map-${zoom}`}
         center={[20.5937, 78.9629]}
         zoom={zoom}
         style={{ height: "100%", width: "100%" }}
