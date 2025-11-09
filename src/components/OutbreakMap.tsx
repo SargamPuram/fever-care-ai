@@ -41,36 +41,15 @@ export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapP
 
   return (
     <div style={{ height, width: "100%" }} className="rounded-lg overflow-hidden border-2 border-border">
-      <MapContainer
-        center={[20.5937, 78.9629]}
-        zoom={zoom}
-        style={{ height: "100%", width: "100%" }}
-        scrollWheelZoom={true}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
+      <MapContainer center={[20.5937, 78.9629]} zoom={zoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
+        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
         {mockOutbreaks.map((outbreak, index) => (
-          <CircleMarker
-            key={index}
-            center={[outbreak.coordinates.lat, outbreak.coordinates.lng]}
-            radius={getRadius(outbreak.cases)}
-            pathOptions={{
-              fillColor: getSeverityColor(outbreak.severity),
-              color: getSeverityColor(outbreak.severity),
-              weight: 2,
-              opacity: 0.8,
-              fillOpacity: 0.6,
-            }}
-          >
+          <CircleMarker key={index} center={[outbreak.coordinates.lat, outbreak.coordinates.lng]} radius={getRadius(outbreak.cases)} pathOptions={{ fillColor: getSeverityColor(outbreak.severity), color: getSeverityColor(outbreak.severity), weight: 2, opacity: 0.8, fillOpacity: 0.6 }}>
             <Popup>
               <div className="p-2">
                 <p className="font-semibold text-base mb-1">{outbreak.location}</p>
                 <p className="text-sm text-muted-foreground mb-2">Cases: {outbreak.cases}</p>
-                <Badge variant={outbreak.severity === "high" ? "destructive" : "secondary"} className="uppercase">
-                  {outbreak.severity}
-                </Badge>
+                <Badge variant={outbreak.severity === "high" ? "destructive" : "secondary"} className="uppercase">{outbreak.severity}</Badge>
               </div>
             </Popup>
           </CircleMarker>
