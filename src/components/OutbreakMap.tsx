@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Badge } from "@/components/ui/badge";
 
 interface OutbreakData {
@@ -16,16 +15,6 @@ const mockOutbreaks: OutbreakData[] = [
   { location: "Chennai", cases: 98, severity: "low", coordinates: { lat: 13.0827, lng: 80.2707 } },
   { location: "Kolkata", cases: 123, severity: "medium", coordinates: { lat: 22.5726, lng: 88.3639 } },
 ];
-
-function MapUpdater({ zoom }: { zoom: number }) {
-  const map = useMap();
-  
-  useEffect(() => {
-    map.setZoom(zoom);
-  }, [zoom, map]);
-  
-  return null;
-}
 
 interface OutbreakMapProps {
   height?: string;
@@ -58,7 +47,6 @@ export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapP
         style={{ height: "100%", width: "100%" }}
         scrollWheelZoom={true}
       >
-        <MapUpdater zoom={zoom} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
