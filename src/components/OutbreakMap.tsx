@@ -21,35 +21,59 @@ interface OutbreakMapProps {
   zoom?: number;
 }
 
+const getSeverityColor = (severity: string) => {
+  switch (severity) {
+    case "high":
+      return "#ef4444";
+    case "medium":
+      return "#f59e0b";
+    case "low":
+      return "#3b82f6";
+    default:
+      return "#6b7280";
+  }
+};
+
+const getRadius = (cases: number) => {
+  return Math.max(10, Math.min(40, cases / 5));
+};
+
 export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapProps) {
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case "high":
-        return "#ef4444"; // red
-      case "medium":
-        return "#f59e0b"; // amber
-      case "low":
-        return "#3b82f6"; // blue
-      default:
-        return "#6b7280"; // gray
-    }
-  };
-
-  const getRadius = (cases: number) => {
-    return Math.max(10, Math.min(40, cases / 5));
-  };
-
   return (
     <div style={{ height, width: "100%" }} className="rounded-lg overflow-hidden border-2 border-border">
-      <MapContainer center={[20.5937, 78.9629]} zoom={zoom} style={{ height: "100%", width: "100%" }} scrollWheelZoom={true}>
-        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <MapContainer
+        center={[20.5937, 78.9629]}
+        zoom={zoom}
+        style={{ height: "100%", width: "100%" }}
+        scrollWheelZoom={true}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
         {mockOutbreaks.map((outbreak, index) => (
-          <CircleMarker key={index} center={[outbreak.coordinates.lat, outbreak.coordinates.lng]} radius={getRadius(outbreak.cases)} pathOptions={{ fillColor: getSeverityColor(outbreak.severity), color: getSeverityColor(outbreak.severity), weight: 2, opacity: 0.8, fillOpacity: 0.6 }}>
+          <CircleMarker
+            key={index}
+            center={[outbreak.coordinates.lat, outbreak.coordinates.lng]}
+            radius={getRadius(outbreak.cases)}
+            pathOptions={{
+              fillColor: getSeverityColor(outbreak.severity),
+              color: getSeverityColor(outbreak.severity),
+              weight: 2,
+              opacity: 0.8,
+              fillOpacity: 0.6,
+            }}
+          >
             <Popup>
               <div className="p-2">
                 <p className="font-semibold text-base mb-1">{outbreak.location}</p>
                 <p className="text-sm text-muted-foreground mb-2">Cases: {outbreak.cases}</p>
-                <Badge variant={outbreak.severity === "high" ? "destructive" : "secondary"} className="uppercase">{outbreak.severity}</Badge>
+                <Badge
+                  variant={outbreak.severity === "high" ? "destructive" : "secondary"}
+                  className="uppercase"
+                >
+                  {outbreak.severity}
+                </Badge>
               </div>
             </Popup>
           </CircleMarker>
