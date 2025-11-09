@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MapPin, ZoomIn, ZoomOut } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import OutbreakMap, { mockOutbreaks } from "@/components/OutbreakMap";
+import OutbreakMap from "@/components/OutbreakMap";
 
 export default function Heatmap() {
   const navigate = useNavigate();
@@ -44,32 +43,16 @@ export default function Heatmap() {
               Fever Outbreak Heatmap
             </CardTitle>
             <CardDescription>
-              Interactive geographic visualization of fever cases across India
+              Interactive geographic visualization of fever cases - Live patient data
             </CardDescription>
           </CardHeader>
           <CardContent>
             <OutbreakMap height="600px" zoom={zoom} />
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {mockOutbreaks.map((outbreak, index) => (
-                <Card key={index} className="hover-lift animate-slide-up" style={{ animationDelay: `${index * 0.1}s` }}>
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-semibold">{outbreak.location}</p>
-                        <p className="text-2xl font-bold text-primary">{outbreak.cases}</p>
-                        <p className="text-sm text-muted-foreground">Active cases</p>
-                      </div>
-                      <Badge
-                        variant={outbreak.severity === "high" ? "destructive" : "secondary"}
-                        className="uppercase"
-                      >
-                        {outbreak.severity}
-                      </Badge>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="mt-6">
+              <p className="text-sm text-muted-foreground">
+                The map displays real-time outbreak zones based on patient data in the database. 
+                Severity is calculated from case counts and patient risk levels.
+              </p>
             </div>
           </CardContent>
         </Card>

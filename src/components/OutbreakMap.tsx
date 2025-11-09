@@ -1,5 +1,7 @@
+import { useState, useEffect } from "react";
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 interface OutbreakData {
   location: string;
@@ -7,14 +9,6 @@ interface OutbreakData {
   severity: "low" | "medium" | "high";
   coordinates: { lat: number; lng: number };
 }
-
-const mockOutbreaks: OutbreakData[] = [
-  { location: "Delhi NCR", cases: 245, severity: "high", coordinates: { lat: 28.7041, lng: 77.1025 } },
-  { location: "Mumbai", cases: 189, severity: "medium", coordinates: { lat: 19.076, lng: 72.8777 } },
-  { location: "Bangalore", cases: 156, severity: "medium", coordinates: { lat: 12.9716, lng: 77.5946 } },
-  { location: "Chennai", cases: 98, severity: "low", coordinates: { lat: 13.0827, lng: 80.2707 } },
-  { location: "Kolkata", cases: 123, severity: "medium", coordinates: { lat: 22.5726, lng: 88.3639 } },
-];
 
 interface OutbreakMapProps {
   height?: string;
@@ -39,6 +33,78 @@ const getRadius = (cases: number) => {
 };
 
 export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapProps) {
+  const [outbreaks, setOutbreaks] = useState<OutbreakData[]>([]);
+
+  useEffect(() => {
+    const fetchOutbreakData = async () => {
+      const { data: patients, error } = await supabase
+        .from("patients")
+        .select("location, status")
+        .not("location", "is", null);
+
+      if (error || !patients) {
+        console.error("Error fetching patient data:", error);
+        return;
+      }
+
+      // Group patients by location and calculate severity
+      const locationMap = new Map<string, { count: number; highRisk: number; lat: number; lng: number }>();
+      
+      patients.forEach((patient: any) => {
+        if (patient.location?.city) {
+          const city = patient.location.city;
+          const coords = patient.location.coordinates || { lat: 0, lng: 0 };
+          
+          if (!locationMap.has(city)) {
+            locationMap.set(city, { count: 0, highRisk: 0, lat: coords.lat, lng: coords.lng });
+          }
+          
+          const data = locationMap.get(city)!;
+          data.count++;
+          if (patient.status === "critical" || patient.status === "high") {
+            data.highRisk++;
+          }
+        }
+      });
+
+      // Convert to outbreak data
+      const outbreakData: OutbreakData[] = Array.from(locationMap.entries()).map(([city, data]) => {
+        const riskPercentage = (data.highRisk / data.count) * 100;
+        let severity: "low" | "medium" | "high" = "low";
+        
+        if (riskPercentage > 50 || data.count > 50) severity = "high";
+        else if (riskPercentage > 25 || data.count > 20) severity = "medium";
+
+        return {
+          location: city,
+          cases: data.count,
+          severity,
+          coordinates: { lat: data.lat, lng: data.lng }
+        };
+      });
+
+      setOutbreaks(outbreakData);
+    };
+
+    fetchOutbreakData();
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('outbreak-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'patients'
+      }, () => {
+        fetchOutbreakData();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   return (
     <div style={{ height, width: "100%" }} className="rounded-lg overflow-hidden border-2 border-border">
       <MapContainer
@@ -51,7 +117,7 @@ export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapP
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {mockOutbreaks.map((outbreak, index) => (
+        {outbreaks.map((outbreak, index) => (
           <CircleMarker
             key={index}
             center={[outbreak.coordinates.lat, outbreak.coordinates.lng]}
@@ -82,5 +148,3 @@ export default function OutbreakMap({ height = "500px", zoom = 5 }: OutbreakMapP
     </div>
   );
 }
-
-export { mockOutbreaks };

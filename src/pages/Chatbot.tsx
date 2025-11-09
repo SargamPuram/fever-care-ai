@@ -82,43 +82,32 @@ export default function Chatbot() {
     try {
       await supabase.from("chat_messages").insert([userMessage]);
 
-      // Simulate AI response (replace with actual AI integration)
+      // Call AI edge function
+      const { data: aiData, error: aiError } = await supabase.functions.invoke('chat', {
+        body: { 
+          messages: [...messages, userMessage].map(m => ({ role: m.role, content: m.content })),
+          language 
+        }
+      });
+
+      if (aiError) {
+        throw aiError;
+      }
+
       const aiResponse = {
         patient_id: patientId,
         role: "assistant" as const,
-        content: getAIResponse(input, language),
+        content: aiData.message,
         language,
       };
 
       await supabase.from("chat_messages").insert([aiResponse]);
       setMessages((prev) => [...prev, { ...aiResponse, created_at: new Date().toISOString() }]);
     } catch (error: any) {
-      toast.error("Failed to send message");
+      toast.error(error.message || "Failed to send message");
     } finally {
       setLoading(false);
     }
-  };
-
-  const getAIResponse = (userInput: string, lang: string) => {
-    const responses: Record<string, Record<string, string>> = {
-      en: {
-        default: "I understand you're experiencing fever symptoms. Can you tell me more about your temperature readings and how you're feeling?",
-        high: "That's concerning. I recommend seeking medical attention immediately if your temperature is above 103°F (39.4°C).",
-        advice: "Stay hydrated, rest, and monitor your temperature regularly. I'll alert your clinician if needed.",
-      },
-      hi: {
-        default: "मैं समझता हूं कि आपको बुखार के लक्षण हैं। क्या आप मुझे अपने तापमान रीडिंग और अपनी स्थिति के बारे में बता सकते हैं?",
-        high: "यह चिंताजनक है। यदि आपका तापमान 103°F (39.4°C) से अधिक है तो तुरंत चिकित्सा सहायता लें।",
-        advice: "हाइड्रेटेड रहें, आराम करें और नियमित रूप से तापमान की निगरानी करें।",
-      },
-      kn: {
-        default: "ನಿಮಗೆ ಜ್ವರದ ಲಕ್ಷಣಗಳು ಇವೆ ಎಂದು ನಾನು ಅರ್ಥಮಾಡಿಕೊಂಡಿದ್ದೇನೆ. ನಿಮ್ಮ ತಾಪಮಾನ ಮತ್ತು ನಿಮ್ಮ ಭಾವನೆಗಳ ಬಗ್ಗೆ ಹೆಚ್ಚು ಹೇಳುತ್ತೀರಾ?",
-        high: "ಇದು ಕಾಳಜಿಯ ವಿಷಯ. ನಿಮ್ಮ ತಾಪಮಾನ 103°F (39.4°C) ಮೇಲಿದ್ದರೆ ತಕ್ಷಣ ವೈದ್ಯಕೀಯ ಸಹಾಯ ಪಡೆಯಿರಿ.",
-        advice: "ಹೈಡ್ರೇಟೆಡ್ ಆಗಿರಿ, ವಿಶ್ರಾಂತಿ ಪಡೆಯಿರಿ ಮತ್ತು ನಿಯಮಿತವಾಗಿ ತಾಪಮಾನವನ್ನು ಮೇಲ್ವಿಚಾರಣೆ ಮಾಡಿ.",
-      },
-    };
-
-    return responses[lang]?.default || responses.en.default;
   };
 
   useEffect(() => {

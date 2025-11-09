@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,56 +14,129 @@ import {
   MapPin,
   Thermometer,
   Clock,
+  Filter,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import OutbreakMap from "@/components/OutbreakMap";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
-const patients = [
-  {
-    id: 1,
-    name: "Sarah Johnson",
-    age: 34,
-    currentTemp: 100.8,
-    status: "moderate",
-    lastSync: "5 min ago",
-    riskScore: 68,
-  },
-  {
-    id: 2,
-    name: "Michael Chen",
-    age: 45,
-    currentTemp: 102.4,
-    status: "high",
-    lastSync: "12 min ago",
-    riskScore: 85,
-  },
-  {
-    id: 3,
-    name: "Emily Williams",
-    age: 28,
-    currentTemp: 99.2,
-    status: "mild",
-    lastSync: "1 hour ago",
-    riskScore: 42,
-  },
-  {
-    id: 4,
-    name: "David Brown",
-    age: 52,
-    currentTemp: 98.6,
-    status: "normal",
-    lastSync: "3 hours ago",
-    riskScore: 20,
-  },
-];
+interface Patient {
+  id: string;
+  full_name: string;
+  age: number;
+  status: string;
+  risk_score: number;
+  updated_at: string;
+}
+
+interface Alert {
+  id: string;
+  message: string;
+  severity: string;
+  is_read: boolean;
+  created_at: string;
+}
 
 const ClinicianDashboard = () => {
   const navigate = useNavigate();
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPatients();
+    fetchAlerts();
+
+    // Real-time updates for patients
+    const patientsChannel = supabase
+      .channel('patients-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'patients'
+      }, () => {
+        fetchPatients();
+      })
+      .subscribe();
+
+    // Real-time updates for alerts
+    const alertsChannel = supabase
+      .channel('alerts-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'alerts'
+      }, (payload) => {
+        const newAlert = payload.new as Alert;
+        setAlerts(prev => [newAlert, ...prev]);
+        toast.error(newAlert.message, {
+          description: `Severity: ${newAlert.severity}`,
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(patientsChannel);
+      supabase.removeChannel(alertsChannel);
+    };
+  }, []);
+
+  const fetchPatients = async () => {
+    const { data, error } = await supabase
+      .from("patients")
+      .select("*")
+      .order("risk_score", { ascending: false });
+
+    if (error) {
+      toast.error("Failed to fetch patients");
+      return;
+    }
+
+    setPatients(data || []);
+    setLoading(false);
+  };
+
+  const fetchAlerts = async () => {
+    const { data, error } = await supabase
+      .from("alerts")
+      .select("*")
+      .eq("is_read", false)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error("Failed to fetch alerts:", error);
+      return;
+    }
+
+    setAlerts(data || []);
+  };
+
+  const filteredPatients = patients.filter(patient => {
+    const matchesSearch = patient.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === "all" || patient.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const highRiskCount = patients.filter(p => p.risk_score > 70).length;
+  const unreadAlerts = alerts.filter(a => !a.is_read).length;
   const getStatusColor = (status: string) => {
     switch (status) {
+      case "critical": return "destructive";
       case "high": return "destructive";
       case "moderate": return "default";
       case "mild": return "secondary";
+      case "active": return "default";
       default: return "outline";
     }
   };
@@ -71,6 +145,19 @@ const ClinicianDashboard = () => {
     if (score > 70) return "text-destructive";
     if (score > 50) return "text-accent";
     return "text-fever-mild";
+  };
+
+  const getTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 60) return `${diffMins} min ago`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
 
   return (
@@ -88,11 +175,20 @@ const ClinicianDashboard = () => {
           <div className="flex items-center gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search patients..." className="pl-9 w-64" />
+              <Input 
+                placeholder="Search patients..." 
+                className="pl-9 w-64"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
             <Button variant="ghost" size="icon" className="relative">
               <Bell className="h-5 w-5" />
-              <span className="absolute top-1 right-1 h-2 w-2 bg-destructive rounded-full animate-pulse-slow" />
+              {unreadAlerts > 0 && (
+                <span className="absolute -top-1 -right-1 h-5 w-5 bg-destructive rounded-full text-[10px] text-white flex items-center justify-center">
+                  {unreadAlerts}
+                </span>
+              )}
             </Button>
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />
@@ -110,25 +206,25 @@ const ClinicianDashboard = () => {
               <Users className="h-8 w-8 text-primary" />
               <TrendingUp className="h-5 w-5 text-fever-normal" />
             </div>
-            <div className="text-3xl font-bold mb-1">247</div>
+            <div className="text-3xl font-bold mb-1">{patients.length}</div>
             <div className="text-sm text-muted-foreground">Total Patients</div>
           </Card>
 
           <Card className="p-6 border-2 border-accent/20 bg-accent/5 hover-lift animate-scale-in" style={{ animationDelay: '0.1s' }}>
             <div className="flex items-center justify-between mb-4">
               <AlertTriangle className="h-8 w-8 text-accent" />
-              <Badge variant="destructive">12</Badge>
+              <Badge variant="destructive">{unreadAlerts}</Badge>
             </div>
-            <div className="text-3xl font-bold mb-1">12</div>
+            <div className="text-3xl font-bold mb-1">{unreadAlerts}</div>
             <div className="text-sm text-muted-foreground">Active Alerts</div>
           </Card>
 
           <Card className="p-6 border-2 border-destructive/20 bg-destructive/5 hover-lift animate-scale-in" style={{ animationDelay: '0.2s' }}>
             <div className="flex items-center justify-between mb-4">
               <Thermometer className="h-8 w-8 text-destructive" />
-              <span className="text-sm font-medium">+3 today</span>
+              <span className="text-sm font-medium">Live</span>
             </div>
-            <div className="text-3xl font-bold mb-1">18</div>
+            <div className="text-3xl font-bold mb-1">{highRiskCount}</div>
             <div className="text-sm text-muted-foreground">High Risk Cases</div>
           </Card>
 
@@ -148,60 +244,74 @@ const ClinicianDashboard = () => {
             <div className="flex items-center justify-between">
               <h2 className="text-xl font-bold">Monitored Patients</h2>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">Filter</Button>
-                <Button variant="outline" size="sm">Sort</Button>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[140px]">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="critical">Critical</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="moderate">Moderate</SelectItem>
+                    <SelectItem value="mild">Mild</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                  </SelectContent>
+                </Select>
                 <Button size="sm" className="bg-gradient-primary">Export</Button>
               </div>
             </div>
           </div>
 
           <div className="divide-y divide-border">
-            {patients.map((patient, index) => (
-              <div
-                key={patient.id}
-                className="p-6 hover:bg-muted/50 transition-colors cursor-pointer animate-slide-up"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="h-12 w-12 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-bold">
-                      {patient.name.charAt(0)}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-1">
-                        <h3 className="font-semibold">{patient.name}</h3>
-                        <Badge variant={getStatusColor(patient.status)} className="capitalize">
-                          {patient.status}
-                        </Badge>
+            {loading ? (
+              <div className="p-6 text-center text-muted-foreground">Loading patients...</div>
+            ) : filteredPatients.length === 0 ? (
+              <div className="p-6 text-center text-muted-foreground">No patients found</div>
+            ) : (
+              filteredPatients.map((patient, index) => (
+                <div
+                  key={patient.id}
+                  className="p-6 hover:bg-muted/50 transition-colors cursor-pointer animate-slide-up"
+                  style={{ animationDelay: `${index * 0.1}s` }}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="h-12 w-12 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-bold">
+                        {patient.full_name.charAt(0)}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>Age: {patient.age}</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {patient.lastSync}
-                        </span>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <h3 className="font-semibold">{patient.full_name}</h3>
+                          <Badge variant={getStatusColor(patient.status)} className="capitalize">
+                            {patient.status}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>Age: {patient.age || 'N/A'}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {getTimeAgo(patient.updated_at)}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-8">
-                    <div className="text-center">
-                      <div className="text-2xl font-bold mb-1">{patient.currentTemp}°F</div>
-                      <div className="text-xs text-muted-foreground">Current Temp</div>
-                    </div>
-                    <div className="text-center">
-                      <div className={`text-2xl font-bold mb-1 ${getRiskColor(patient.riskScore)}`}>
-                        {patient.riskScore}%
+                    <div className="flex items-center gap-8">
+                      <div className="text-center">
+                        <div className={`text-2xl font-bold mb-1 ${getRiskColor(patient.risk_score)}`}>
+                          {patient.risk_score}%
+                        </div>
+                        <div className="text-xs text-muted-foreground">Risk Score</div>
                       </div>
-                      <div className="text-xs text-muted-foreground">Risk Score</div>
+                      <Link to={`/clinician/patient/${patient.id}`}>
+                        <Button variant="outline" size="sm">View Details</Button>
+                      </Link>
                     </div>
-                    <Link to={`/clinician/patient/${patient.id}`}>
-                      <Button variant="outline" size="sm">View Details</Button>
-                    </Link>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </Card>
 
