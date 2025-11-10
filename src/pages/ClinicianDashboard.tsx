@@ -35,6 +35,7 @@ interface Patient {
   status: string;
   risk_score: number;
   updated_at: string;
+  phone?: string;
 }
 
 interface Alert {
@@ -51,6 +52,8 @@ const ClinicianDashboard = () => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [riskFilter, setRiskFilter] = useState("all");
+  const [sortBy, setSortBy] = useState<"name" | "risk" | "updated">("risk");
   const [loading, setLoading] = useState(true);
   const [hasClinicianRole, setHasClinicianRole] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
@@ -170,9 +173,28 @@ const ClinicianDashboard = () => {
   };
 
   const filteredPatients = patients.filter(patient => {
-    const matchesSearch = patient.full_name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = 
+      patient.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patient.phone?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      patient.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
     const matchesStatus = statusFilter === "all" || patient.status === statusFilter;
-    return matchesSearch && matchesStatus;
+    
+    const matchesRisk = 
+      riskFilter === "all" ||
+      (riskFilter === "high" && patient.risk_score > 70) ||
+      (riskFilter === "medium" && patient.risk_score >= 40 && patient.risk_score <= 70) ||
+      (riskFilter === "low" && patient.risk_score < 40);
+    
+    return matchesSearch && matchesStatus && matchesRisk;
+  }).sort((a, b) => {
+    if (sortBy === "name") {
+      return a.full_name.localeCompare(b.full_name);
+    } else if (sortBy === "risk") {
+      return b.risk_score - a.risk_score;
+    } else {
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    }
   });
 
   const highRiskCount = patients.filter(p => p.risk_score > 70).length;
@@ -303,24 +325,53 @@ const ClinicianDashboard = () => {
         {/* Patient List */}
         <Card className="border-2 border-border animate-slide-up">
           <div className="p-6 border-b border-border">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold">Monitored Patients</h2>
-              <div className="flex gap-2">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-[140px]">
-                    <Filter className="h-4 w-4 mr-2" />
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Status</SelectItem>
-                    <SelectItem value="critical">Critical</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                    <SelectItem value="moderate">Moderate</SelectItem>
-                    <SelectItem value="mild">Mild</SelectItem>
-                    <SelectItem value="active">Active</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button size="sm" className="bg-gradient-primary">Export</Button>
+              <Button size="sm" className="bg-gradient-primary">Export</Button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <Filter className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="critical">Critical</SelectItem>
+                  <SelectItem value="high">High</SelectItem>
+                  <SelectItem value="moderate">Moderate</SelectItem>
+                  <SelectItem value="mild">Mild</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={riskFilter} onValueChange={setRiskFilter}>
+                <SelectTrigger className="w-[140px]">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Risk Level" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Risk</SelectItem>
+                  <SelectItem value="high">High (&gt;70)</SelectItem>
+                  <SelectItem value="medium">Medium (40-70)</SelectItem>
+                  <SelectItem value="low">Low (&lt;40)</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select value={sortBy} onValueChange={(value: "name" | "risk" | "updated") => setSortBy(value)}>
+                <SelectTrigger className="w-[140px]">
+                  <TrendingUp className="h-4 w-4 mr-2" />
+                  <SelectValue placeholder="Sort By" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="risk">Risk Score</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                  <SelectItem value="updated">Last Updated</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <div className="text-sm text-muted-foreground flex items-center">
+                Showing {filteredPatients.length} of {patients.length} patients
               </div>
             </div>
           </div>
