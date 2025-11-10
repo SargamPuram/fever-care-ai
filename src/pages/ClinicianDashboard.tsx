@@ -27,6 +27,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionsBar } from "@/components/BulkActionsBar";
+import { AnalyticsDashboard } from "@/components/AnalyticsDashboard";
+import { RealTimeAlerts } from "@/components/RealTimeAlerts";
 
 interface Patient {
   id: string;
@@ -57,6 +61,8 @@ const ClinicianDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [hasClinicianRole, setHasClinicianRole] = useState(false);
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [selectedPatients, setSelectedPatients] = useState<Set<string>>(new Set());
+  const [unreadAlerts, setUnreadAlerts] = useState(0);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -198,7 +204,40 @@ const ClinicianDashboard = () => {
   });
 
   const highRiskCount = patients.filter(p => p.risk_score > 70).length;
-  const unreadAlerts = alerts.filter(a => !a.is_read).length;
+  
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedPatients(new Set(filteredPatients.map(p => p.id)));
+    } else {
+      setSelectedPatients(new Set());
+    }
+  };
+
+  const handleSelectPatient = (patientId: string, checked: boolean) => {
+    const newSelected = new Set(selectedPatients);
+    if (checked) {
+      newSelected.add(patientId);
+    } else {
+      newSelected.delete(patientId);
+    }
+    setSelectedPatients(newSelected);
+  };
+
+  const handleExportSelected = () => {
+    const selectedData = patients.filter(p => selectedPatients.has(p.id));
+    const csvContent = [
+      ['ID', 'Name', 'Age', 'Status', 'Risk Score', 'Phone'],
+      ...selectedData.map(p => [p.id, p.full_name, p.age, p.status, p.risk_score, p.phone || 'N/A'])
+    ].map(row => row.join(',')).join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `patients-export-${new Date().toISOString().split('T')[0]}.csv`;
+    a.click();
+    toast.success(`Exported ${selectedPatients.size} patients`);
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case "critical": return "destructive";
@@ -382,14 +421,26 @@ const ClinicianDashboard = () => {
             ) : filteredPatients.length === 0 ? (
               <div className="p-6 text-center text-muted-foreground">No patients found</div>
             ) : (
-              filteredPatients.map((patient, index) => (
-                <div
-                  key={patient.id}
-                  className="p-6 hover:bg-muted/50 transition-colors cursor-pointer animate-slide-up"
-                  style={{ animationDelay: `${index * 0.1}s` }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
+              <>
+                <div className="p-4 bg-muted/30 border-b border-border flex items-center gap-4">
+                  <Checkbox
+                    checked={selectedPatients.size === filteredPatients.length && filteredPatients.length > 0}
+                    onCheckedChange={handleSelectAll}
+                  />
+                  <span className="text-sm font-medium">Select All</span>
+                </div>
+                {filteredPatients.map((patient, index) => (
+                  <div
+                    key={patient.id}
+                    className="p-6 hover:bg-muted/50 transition-colors animate-slide-up"
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4 flex-1">
+                        <Checkbox
+                          checked={selectedPatients.has(patient.id)}
+                          onCheckedChange={(checked) => handleSelectPatient(patient.id, checked as boolean)}
+                        />
                       <div className="h-12 w-12 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground font-bold">
                         {patient.full_name.charAt(0)}
                       </div>
@@ -420,13 +471,20 @@ const ClinicianDashboard = () => {
                       <Link to={`/clinician/patient/${patient.id}`}>
                         <Button variant="outline" size="sm">View Details</Button>
                       </Link>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </>
             )}
           </div>
         </Card>
+
+        {/* Analytics Dashboard */}
+        <AnalyticsDashboard patients={patients} />
+
+        {/* Real-Time Alerts */}
+        <RealTimeAlerts onAlertCountChange={setUnreadAlerts} />
 
         {/* Outbreak Heatmap Preview */}
         <Card className="mt-8 p-6 border-2 border-border animate-slide-up">
@@ -438,6 +496,13 @@ const ClinicianDashboard = () => {
           </div>
           <OutbreakMap height="400px" zoom={5} />
         </Card>
+
+        <BulkActionsBar
+          selectedCount={selectedPatients.size}
+          selectedPatientIds={Array.from(selectedPatients)}
+          onClearSelection={() => setSelectedPatients(new Set())}
+          onExport={handleExportSelected}
+        />
       </main>
     </div>
   );
