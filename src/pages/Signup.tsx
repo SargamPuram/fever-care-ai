@@ -7,6 +7,15 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Activity } from "lucide-react";
+import { z } from "zod";
+
+const signupSchema = z.object({
+  email: z.string().email("Invalid email address").max(255, "Email must be less than 255 characters"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Password must contain at least one uppercase letter, one lowercase letter, and one number"),
+  fullName: z.string().trim().min(1, "Name cannot be empty").max(100, "Name must be less than 100 characters"),
+});
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -20,9 +29,20 @@ export default function Signup() {
     setLoading(true);
 
     try {
+      const result = signupSchema.safeParse({ email, password, fullName });
+      
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
+        setLoading(false);
+        return;
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
-        password,
+        email: result.data.email,
+        password: result.data.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/login`
+        }
       });
 
       if (authError) throw authError;
@@ -33,11 +53,23 @@ export default function Signup() {
           .insert([
             {
               user_id: authData.user.id,
-              full_name: fullName,
+              full_name: result.data.fullName,
             },
           ]);
 
         if (profileError) throw profileError;
+
+        // Assign patient role by default
+        const { error: roleError } = await supabase
+          .from("user_roles")
+          .insert([
+            {
+              user_id: authData.user.id,
+              role: 'patient',
+            },
+          ]);
+
+        if (roleError) throw roleError;
       }
 
       toast.success("Account created successfully! Please sign in.");

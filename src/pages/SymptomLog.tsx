@@ -10,6 +10,7 @@ import { Slider } from "@/components/ui/slider";
 import { ArrowLeft, Plus, Calendar } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { z } from "zod";
 
 const symptomTypes = [
   "Headache",
@@ -21,6 +22,15 @@ const symptomTypes = [
   "Sore Throat",
   "Loss of Appetite",
 ];
+
+const symptomSchema = z.object({
+  temperature: z.number().min(95, "Temperature must be at least 95°F").max(108, "Temperature must be at most 108°F").optional(),
+  notes: z.string().max(1000, "Notes must be less than 1000 characters").optional(),
+  symptoms: z.array(z.object({
+    symptom_type: z.string(),
+    severity: z.number().min(1).max(5)
+  })).min(1, "Please select at least one symptom")
+});
 
 export default function SymptomLog() {
   const navigate = useNavigate();
@@ -78,11 +88,30 @@ export default function SymptomLog() {
     setLoading(true);
 
     try {
-      const symptomsToInsert = Object.entries(selectedSymptoms).map(([type, severity]) => ({
+      const symptomsArray = Object.entries(selectedSymptoms).map(([symptom_type, severity]) => ({
+        symptom_type,
+        severity
+      }));
+
+      const tempValue = temperature ? parseFloat(temperature) : undefined;
+
+      const result = symptomSchema.safeParse({
+        temperature: tempValue,
+        notes: notes || undefined,
+        symptoms: symptomsArray
+      });
+
+      if (!result.success) {
+        toast.error(result.error.issues[0].message);
+        setLoading(false);
+        return;
+      }
+
+      const symptomsToInsert = result.data.symptoms.map(symptom => ({
         patient_id: patientId,
-        symptom_type: type,
-        severity,
-        notes,
+        symptom_type: symptom.symptom_type,
+        severity: symptom.severity,
+        notes: result.data.notes || null,
       }));
 
       const { error: symptomsError } = await supabase
@@ -91,13 +120,13 @@ export default function SymptomLog() {
 
       if (symptomsError) throw symptomsError;
 
-      if (temperature) {
+      if (result.data.temperature) {
         const { error: tempError } = await supabase
           .from("temperature_readings")
           .insert([
             {
               patient_id: patientId,
-              temperature: parseFloat(temperature),
+              temperature: result.data.temperature,
             },
           ]);
 

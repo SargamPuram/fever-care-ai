@@ -52,10 +52,57 @@ const ClinicianDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [loading, setLoading] = useState(true);
+  const [hasClinicianRole, setHasClinicianRole] = useState(false);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
-    fetchPatients();
-    fetchAlerts();
+    const checkAuth = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          toast.error("Please log in to access the clinician dashboard");
+          navigate("/login");
+          return;
+        }
+
+        // Check if user has clinician or admin role
+        const { data: roles, error: roleError } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .in("role", ["clinician", "admin"]);
+
+        if (roleError) {
+          console.error("Error checking role:", roleError);
+          toast.error("Error verifying authorization");
+          navigate("/patient");
+          return;
+        }
+
+        if (!roles || roles.length === 0) {
+          toast.error("You don't have permission to access the clinician dashboard");
+          navigate("/patient");
+          return;
+        }
+
+        setHasClinicianRole(true);
+        setIsCheckingAuth(false);
+        
+        // Only fetch data after confirming authorization
+        fetchPatients();
+        fetchAlerts();
+      } catch (error) {
+        console.error("Auth check error:", error);
+        navigate("/login");
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!hasClinicianRole) return;
 
     // Real-time updates for patients
     const patientsChannel = supabase
@@ -89,7 +136,7 @@ const ClinicianDashboard = () => {
       supabase.removeChannel(patientsChannel);
       supabase.removeChannel(alertsChannel);
     };
-  }, []);
+  }, [hasClinicianRole]);
 
   const fetchPatients = async () => {
     const { data, error } = await supabase
@@ -159,6 +206,21 @@ const ClinicianDashboard = () => {
     const diffDays = Math.floor(diffHours / 24);
     return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
   };
+
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <Activity className="h-12 w-12 text-primary animate-pulse mx-auto mb-4" />
+          <p className="text-muted-foreground">Verifying authorization...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasClinicianRole) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
