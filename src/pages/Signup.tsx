@@ -58,18 +58,6 @@ export default function Signup() {
           ]);
 
         if (profileError) throw profileError;
-
-        // Assign patient role by default
-        const { error: roleError } = await supabase
-          .from("user_roles")
-          .insert([
-            {
-              user_id: authData.user.id,
-              role: 'patient',
-            },
-          ]);
-
-        if (roleError) throw roleError;
       }
 
       toast.success("Account created successfully! Please sign in.");

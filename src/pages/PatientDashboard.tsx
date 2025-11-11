@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useNavigate } from "react-router-dom";
+import { PatientMedications } from "@/components/PatientMedications";
 
 const temperatureData = [
   { time: "6AM", temp: 98.2 },
@@ -146,6 +147,8 @@ const PatientDashboard = () => {
                 <p className="text-xs text-muted-foreground">Get health guidance</p>
               </Card>
             </div>
+
+            <PatientMedications />
 
             {/* Alerts */}
             <Card className="p-4 border-2 border-accent/20 bg-accent/5 animate-slide-up">

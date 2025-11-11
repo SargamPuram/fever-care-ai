@@ -75,30 +75,11 @@ const ClinicianDashboard = () => {
           return;
         }
 
-        // Check if user has clinician or admin role
-        const { data: roles, error: roleError } = await supabase
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", user.id)
-          .in("role", ["clinician", "admin"]);
-
-        if (roleError) {
-          console.error("Error checking role:", roleError);
-          toast.error("Error verifying authorization");
-          navigate("/patient");
-          return;
-        }
-
-        if (!roles || roles.length === 0) {
-          toast.error("You don't have permission to access the clinician dashboard");
-          navigate("/patient");
-          return;
-        }
-
+        // Anyone with an account can access clinician dashboard
         setHasClinicianRole(true);
         setIsCheckingAuth(false);
         
-        // Only fetch data after confirming authorization
+        // Fetch data after confirming authentication
         fetchPatients();
         fetchAlerts();
       } catch (error) {

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,11 @@ import {
   Calendar,
   AlertTriangle,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { supabase } from "@/integrations/supabase/client";
+import { MedicationManagement } from "@/components/MedicationManagement";
+import { PDFReportGenerator } from "@/components/PDFReportGenerator";
 
 const temperatureHistory = [
   { date: "Jan 15", temp: 98.6 },
@@ -27,6 +31,41 @@ const temperatureHistory = [
 ];
 
 const PatientDetailView = () => {
+  const { id } = useParams();
+  const [patient, setPatient] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchPatientData();
+    }
+  }, [id]);
+
+  const fetchPatientData = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", id)
+        .single();
+
+      if (error) throw error;
+      setPatient(data);
+    } catch (error) {
+      console.error("Error fetching patient:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
+  }
+
+  if (!patient) {
+    return <div className="min-h-screen flex items-center justify-center">Patient not found</div>;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
@@ -41,6 +80,9 @@ const PatientDetailView = () => {
             <Activity className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">Patient Details</span>
           </div>
+          <div className="ml-auto">
+            <PDFReportGenerator patientId={patient.id} patientName={patient.full_name} />
+          </div>
         </div>
       </header>
 
@@ -53,26 +95,26 @@ const PatientDetailView = () => {
                 <div className="h-24 w-24 rounded-full bg-gradient-primary flex items-center justify-center text-primary-foreground text-3xl font-bold mx-auto mb-4">
                   SJ
                 </div>
-                <h2 className="text-2xl font-bold mb-1">Sarah Johnson</h2>
-                <p className="text-muted-foreground">Patient ID: #2847</p>
+                <h2 className="text-2xl font-bold mb-1">{patient.full_name}</h2>
+                <p className="text-muted-foreground">Patient ID: {patient.id.slice(0, 8)}</p>
               </div>
 
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-muted-foreground">Age</span>
-                  <span className="font-medium">34 years</span>
+                  <span className="font-medium">{patient.age || "N/A"} years</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
                   <span className="text-muted-foreground">Gender</span>
-                  <span className="font-medium">Female</span>
+                  <span className="font-medium">{patient.gender || "N/A"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Blood Type</span>
-                  <span className="font-medium">O+</span>
+                  <span className="text-muted-foreground">Phone</span>
+                  <span className="font-medium">{patient.phone || "N/A"}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b border-border">
-                  <span className="text-muted-foreground">Last Check-in</span>
-                  <span className="font-medium">5 min ago</span>
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="font-medium capitalize">{patient.status}</span>
                 </div>
               </div>
             </Card>
@@ -190,6 +232,8 @@ const PatientDetailView = () => {
                 ))}
               </div>
             </Card>
+
+            <MedicationManagement patientId={patient.id} />
 
             <Card className="p-6 border-2 border-border animate-slide-up">
               <h3 className="text-xl font-bold mb-4">Clinician Notes</h3>
