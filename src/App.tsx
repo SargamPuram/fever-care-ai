@@ -14,6 +14,7 @@ import SymptomLog from "./pages/SymptomLog";
 import DeviceSetup from "./pages/DeviceSetup";
 import Heatmap from "./pages/Heatmap";
 import NotFound from "./pages/NotFound";
+import AITesting from "./components/AITesting";
 
 const queryClient = new QueryClient();
 
@@ -34,6 +35,7 @@ const App = () => (
           <Route path="/clinician" element={<ClinicianDashboard />} />
           <Route path="/clinician/patient/:id" element={<PatientDetailView />} />
           <Route path="/heatmap" element={<Heatmap />} />
+          <Route path="/ai-test" element={<AITesting />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
