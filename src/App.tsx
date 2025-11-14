@@ -14,7 +14,14 @@ import SymptomLog from "./pages/SymptomLog";
 import DeviceSetup from "./pages/DeviceSetup";
 import Heatmap from "./pages/Heatmap";
 import NotFound from "./pages/NotFound";
+<<<<<<< Updated upstream
 import AITesting from "./components/AITesting";
+=======
+import PatientLogin from "./pages/PatientLogin";
+import ClinicianLogin from "./pages/ClinicianLogin";
+import PatientSignup from "./pages/PatientSignup";
+import ClinicianSignup from "./pages/ClinicianSignup";
+>>>>>>> Stashed changes
 
 const queryClient = new QueryClient();
 
@@ -27,6 +34,10 @@ const App = () => (
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/signup-patient" element={<PatientSignup />} />
+          <Route path="/signin-patient" element={<PatientLogin />} />
+          <Route path="/signup-clinician" element={<ClinicianSignup />} />
+          <Route path="/signin-clinician" element={<ClinicianLogin />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/patient" element={<PatientDashboard />} />
           <Route path="/chatbot" element={<Chatbot />} />

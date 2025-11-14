@@ -16,6 +16,13 @@ const LandingPage = () => {
             </span>
           </div>
           <div className="flex gap-4">
+            <Link to="/signin-patient">
+              <Button variant="outline">Patient Login</Button>
+            </Link>
+            <Link to="/signin-clinician">
+              <Button variant="outline">Clinician Login</Button>
+            </Link>
+            
             <Link to="/patient">
               <Button variant="outline">Patient App</Button>
             </Link>
