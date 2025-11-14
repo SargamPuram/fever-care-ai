@@ -27,9 +27,8 @@ import {
 } from "recharts";
 import { useNavigate } from "react-router-dom";
 import { PatientMedications } from "@/components/PatientMedications";
-import apiClient from "@/lib/axios";
+import axios from "axios";
 import { toast } from "sonner";
-import { AxiosResponse } from "axios";
 
 // TypeScript Interfaces
 interface User {
@@ -97,17 +96,13 @@ interface TemperatureChartData {
   temp: number;
 }
 
-const PatientDashboard = () => {
+const PatientDashboardd = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("home");
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
-    null
-  );
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentTemp, setCurrentTemp] = useState(98.6);
-  const [feverStatus, setFeverStatus] = useState<
-    "normal" | "mild" | "moderate" | "high"
-  >("normal");
+  const [feverStatus, setFeverStatus] = useState<"normal" | "mild" | "moderate" | "high">("normal");
 
   useEffect(() => {
     // Check if token exists
@@ -119,16 +114,28 @@ const PatientDashboard = () => {
     }
 
     fetchDashboardData();
-  }, [navigate]);
+  }, []);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        toast.error("No authentication token found");
+        navigate("/signin-patient");
+        return;
+      }
 
-      // Token is automatically added by axios interceptor
-      const response: AxiosResponse<DashboardResponse> = await apiClient.get(
-        "/patient/dashboard"
-      );
+      // Make API call with token
+      const response = await axios.get("http://localhost:7777/patient/dashboard", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
 
       if (response.data.success) {
         const data: DashboardData = {
@@ -152,13 +159,16 @@ const PatientDashboard = () => {
       }
     } catch (error: any) {
       console.error("Dashboard error:", error);
-
+      
       if (error.response?.status === 401) {
         toast.error("Session expired. Please login again.");
         localStorage.removeItem("token");
-        navigate("/login/patient");
+        localStorage.removeItem("userRole");
+        localStorage.removeItem("userName");
+        localStorage.removeItem("userEmail");
+        navigate("/signin-patient");
       } else {
-        toast.error("Failed to load dashboard");
+        toast.error(error.response?.data?.message || "Failed to load dashboard");
       }
     } finally {
       setLoading(false);
@@ -192,13 +202,28 @@ const PatientDashboard = () => {
 
   const handleStartEpisode = async () => {
     try {
-      const response = await apiClient.post("/patient/episode/start");
+      const token = localStorage.getItem("token");
+      
+      if (!token) {
+        toast.error("Please login first");
+        navigate("/signin-patient");
+        return;
+      }
+
+      const response = await axios.post(
+        "http://localhost:7777/patient/episode/start",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.data.success) {
         toast.success("Fever episode started!");
-        navigate("/episode/history", {
-          state: { episodeId: response.data.episode._id },
-        });
+        fetchDashboardData(); // Refresh dashboard
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to start episode");
@@ -208,8 +233,10 @@ const PatientDashboard = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");
+    localStorage.removeItem("userName");
+    localStorage.removeItem("userEmail");
     toast.success("Logged out successfully");
-    navigate("/login/patient");
+    navigate("/signin-patient");
   };
 
   // Format temperature data for chart
@@ -239,7 +266,7 @@ const PatientDashboard = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Bell className="h-6 w-6 cursor-pointer" />
+                <Bell className="h-6 w-6 cursor-pointer" onClick={() => setActiveTab("alerts")} />
                 {dashboardData?.alerts && dashboardData.alerts.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full text-xs flex items-center justify-center">
                     {dashboardData.alerts.length}
@@ -256,12 +283,10 @@ const PatientDashboard = () => {
             </div>
           </div>
           <h1 className="text-2xl font-bold mb-1">
-            Welcome back, {dashboardData?.user?.name || "Patient"}
+            Welcome back, {localStorage.getItem("userName") || dashboardData?.user?.name || "Patient"}
           </h1>
           <p className="text-primary-foreground/80 text-sm">
-            {dashboardData?.hasActiveEpisode
-              ? "Active fever episode"
-              : "Healthy status"}
+            {dashboardData?.hasActiveEpisode ? "Active fever episode" : "Healthy status"}
           </p>
         </div>
       </header>
@@ -276,17 +301,11 @@ const PatientDashboard = () => {
                 <div className="text-center space-y-4">
                   <Thermometer className="h-16 w-16 mx-auto text-muted-foreground" />
                   <div>
-                    <h3 className="text-xl font-bold mb-2">
-                      No Active Fever Episode
-                    </h3>
+                    <h3 className="text-xl font-bold mb-2">No Active Fever Episode</h3>
                     <p className="text-muted-foreground mb-4">
-                      Start tracking your fever to get AI-powered diagnosis and
-                      monitoring
+                      Start tracking your fever to get AI-powered diagnosis and monitoring
                     </p>
-                    <Button
-                      onClick={handleStartEpisode}
-                      className="bg-gradient-primary"
-                    >
+                    <Button onClick={handleStartEpisode} className="bg-gradient-primary">
                       <Activity className="mr-2 h-4 w-4" />
                       Start Fever Tracking
                     </Button>
@@ -303,9 +322,7 @@ const PatientDashboard = () => {
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold">Current Status</h2>
                     <Badge
-                      variant={
-                        feverStatus === "normal" ? "secondary" : "destructive"
-                      }
+                      variant={feverStatus === "normal" ? "secondary" : "destructive"}
                       className="animate-pulse-slow"
                     >
                       {feverStatus === "normal" ? "Healthy" : "Monitoring"}
@@ -315,9 +332,7 @@ const PatientDashboard = () => {
                     <div className={`relative ${getFeverColor()}`}>
                       <div className="text-center">
                         <Thermometer className="h-20 w-20 mx-auto mb-2" />
-                        <span className="text-3xl font-bold">
-                          {currentTemp}°F
-                        </span>
+                        <span className="text-3xl font-bold">{currentTemp}°F</span>
                       </div>
                     </div>
                     <div className="flex-1">
@@ -325,33 +340,21 @@ const PatientDashboard = () => {
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span>Fever Level</span>
-                            <span className="font-medium capitalize">
-                              {feverStatus}
-                            </span>
+                            <span className="font-medium capitalize">{feverStatus}</span>
                           </div>
-                          <Progress
-                            value={(currentTemp - 97) * 20}
-                            className="h-2"
-                          />
+                          <Progress value={(currentTemp - 97) * 20} className="h-2" />
                         </div>
                         {dashboardData.latestPrediction && (
                           <div className="p-3 bg-muted rounded-lg">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">
-                                AI Diagnosis:
-                              </span>
+                              <span className="text-sm font-medium">AI Diagnosis:</span>
                               <Badge className="capitalize">
-                                {
-                                  dashboardData.latestPrediction
-                                    .primaryDiagnosis
-                                }
+                                {dashboardData.latestPrediction.primaryDiagnosis}
                               </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Confidence:{" "}
-                              {dashboardData.latestPrediction.confidenceScore}%
-                              | Urgency:{" "}
-                              {dashboardData.latestPrediction.urgency}
+                              Confidence: {dashboardData.latestPrediction.confidenceScore}% |
+                              Urgency: {dashboardData.latestPrediction.urgency}
                             </div>
                           </div>
                         )}
@@ -374,28 +377,14 @@ const PatientDashboard = () => {
                         Temperature Trend
                       </h2>
                       <Badge variant="outline">
-                        Day{" "}
-                        {
-                          dashboardData.symptomLogs[
-                            dashboardData.symptomLogs.length - 1
-                          ]?.dayOfIllness
-                        }
+                        Day {dashboardData.symptomLogs[dashboardData.symptomLogs.length - 1]?.dayOfIllness}
                       </Badge>
                     </div>
                     <ResponsiveContainer width="100%" height={200}>
                       <LineChart data={temperatureData}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="hsl(var(--border))"
-                        />
-                        <XAxis
-                          dataKey="time"
-                          stroke="hsl(var(--muted-foreground))"
-                        />
-                        <YAxis
-                          domain={[97, 105]}
-                          stroke="hsl(var(--muted-foreground))"
-                        />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" />
+                        <YAxis domain={[97, 105]} stroke="hsl(var(--muted-foreground))" />
                         <Tooltip
                           contentStyle={{
                             backgroundColor: "hsl(var(--card))",
@@ -424,9 +413,7 @@ const PatientDashboard = () => {
                   >
                     <FileText className="h-8 w-8 text-primary mb-2" />
                     <h3 className="font-semibold mb-1">Log Symptoms</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Record today's symptoms
-                    </p>
+                    <p className="text-xs text-muted-foreground">Record today's symptoms</p>
                   </Card>
                   <Card
                     className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in"
@@ -434,9 +421,7 @@ const PatientDashboard = () => {
                   >
                     <MessageSquare className="h-8 w-8 text-primary mb-2" />
                     <h3 className="font-semibold mb-1">AI Assistant</h3>
-                    <p className="text-xs text-muted-foreground">
-                      Get health guidance
-                    </p>
+                    <p className="text-xs text-muted-foreground">Get health guidance</p>
                   </Card>
                 </div>
 
@@ -451,17 +436,11 @@ const PatientDashboard = () => {
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-accent mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="font-semibold mb-1">
-                          {dashboardData.alerts[0].message}
-                        </h3>
+                        <h3 className="font-semibold mb-1">{dashboardData.alerts[0].message}</h3>
                         <p className="text-sm text-muted-foreground mb-2">
                           Severity: {dashboardData.alerts[0].severity}
                         </p>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setActiveTab("alerts")}
-                        >
+                        <Button size="sm" variant="outline" onClick={() => setActiveTab("alerts")}>
                           View All Alerts
                         </Button>
                       </div>
@@ -482,13 +461,7 @@ const PatientDashboard = () => {
                   {dashboardData.alerts.map((alert) => (
                     <div key={alert._id} className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <Badge
-                          variant={
-                            alert.severity === "critical"
-                              ? "destructive"
-                              : "default"
-                          }
-                        >
+                        <Badge variant={alert.severity === "critical" ? "destructive" : "default"}>
                           {alert.severity}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
@@ -564,4 +537,4 @@ const PatientDashboard = () => {
   );
 };
 
-export default PatientDashboard;
+export default PatientDashboardd;

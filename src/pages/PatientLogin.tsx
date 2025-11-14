@@ -3,7 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Activity, Loader2 } from "lucide-react";
@@ -27,7 +34,7 @@ export default function PatientLogin() {
     try {
       // Validate input
       const result = loginSchema.safeParse({ email, password });
-      
+
       if (!result.success) {
         toast.error(result.error.issues[0].message);
         setLoading(false);
@@ -35,23 +42,33 @@ export default function PatientLogin() {
       }
 
       // Make API call using Axios
-      const response = await axios.post('http://localhost:7777/login/patient', {
+      const response = await axios.post("http://localhost:7777/login/patient", {
         email: result.data.email,
         password: result.data.password,
       });
-      console.log("Login Response",response)
 
-      // Store token if returned
-      // if (response.data.token) {
-      //   localStorage.setItem('authToken', response.data.token);
-      // }
+      console.log("Login Response:", response.data);
 
-      toast.success("Logged in successfully");
-      navigate("/patient");
-      
-    } catch (error) {
-      console.error('Login error:', error);
-      
+      // ✅ FIXED: Access token from nested data structure
+      if (response.data.success && response.data.data) {
+        const { token, name, email, role } = response.data.data;
+
+        // Store all necessary data
+        localStorage.setItem("token", token);
+        localStorage.setItem("userRole", role);
+        localStorage.setItem("userName", name);
+        localStorage.setItem("userEmail", email);
+
+        toast.success("Logged in successfully");
+
+        // Navigate to dashboard
+        navigate("/patient-dashboard");
+      } else {
+        toast.error("Login failed. Please try again.");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+
       // Handle different error scenarios
       if (error.response) {
         // Server responded with error
@@ -78,9 +95,11 @@ export default function PatientLogin() {
             </div>
           </div>
           <CardTitle className="text-2xl font-bold">Patient Login</CardTitle>
-          <CardDescription>Sign in to access your health dashboard</CardDescription>
+          <CardDescription>
+            Sign in to access your health dashboard
+          </CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -95,7 +114,7 @@ export default function PatientLogin() {
                 className="transition-all focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -109,11 +128,11 @@ export default function PatientLogin() {
               />
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity" 
+            <Button
+              type="submit"
+              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
               disabled={loading}
             >
               {loading ? (
@@ -125,10 +144,13 @@ export default function PatientLogin() {
                 "Sign In"
               )}
             </Button>
-            
+
             <p className="text-sm text-center text-muted-foreground">
               Don't have an account?{" "}
-              <Link to="/signup-patient" className="text-primary hover:underline font-medium">
+              <Link
+                to="/signup-patient"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign up
               </Link>
             </p>
