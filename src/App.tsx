@@ -20,6 +20,7 @@ import ClinicianLogin from "./pages/ClinicianLogin";
 import PatientSignup from "./pages/PatientSignup";
 import ClinicianSignup from "./pages/ClinicianSignup";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
