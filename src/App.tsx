@@ -19,6 +19,7 @@ import PatientLogin from "./pages/PatientLogin";
 import ClinicianLogin from "./pages/ClinicianLogin";
 import PatientSignup from "./pages/PatientSignup";
 import ClinicianSignup from "./pages/ClinicianSignup";
+import PatientDashboardd from "./pages/PatientDashboardd";
 
 
 const queryClient = new QueryClient();
@@ -37,7 +38,7 @@ const App = () => (
           <Route path="/signup-clinician" element={<ClinicianSignup />} />
           <Route path="/signin-clinician" element={<ClinicianLogin />} />
           <Route path="/signup" element={<Signup />} />
-          <Route path="/patient" element={<PatientDashboard />} />
+          <Route path="/patient-dashboard" element={<PatientDashboardd />} />
           <Route path="/chatbot" element={<Chatbot />} />
           <Route path="/symptom-log" element={<SymptomLog />} />
           <Route path="/device-setup" element={<DeviceSetup />} />
