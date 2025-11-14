@@ -20,6 +20,7 @@ import ClinicianLogin from "./pages/ClinicianLogin";
 import PatientSignup from "./pages/PatientSignup";
 import ClinicianSignup from "./pages/ClinicianSignup";
 import PatientDashboardd from "./pages/PatientDashboardd";
+import AdvancedAI from "./components/AdvancedAI";
 
 
 const queryClient = new QueryClient();
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/clinician/patient/:id" element={<PatientDetailView />} />
           <Route path="/heatmap" element={<Heatmap />} />
           <Route path="/ai-test" element={<AITesting />} />
+          <Route path="/adv" element={<AdvancedAI />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
