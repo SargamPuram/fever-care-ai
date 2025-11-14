@@ -28,7 +28,7 @@ function AITesting() {
 
   // Fetch API info on component mount
   React.useEffect(() => {
-    axios.get('http://localhost:5000/')
+    axios.get('http://localhost:7777/')
       .then(response => setApiInfo(response.data))
       .catch(err => console.error('API info fetch failed:', err));
   }, []);
@@ -64,7 +64,7 @@ function AITesting() {
     };
 
     try {
-      const response = await axios.post('http://localhost:5000/predict', apiData);
+      const response = await axios.post('http://localhost:7777/predict', apiData);
       setResult(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to get prediction. Please try again.');
