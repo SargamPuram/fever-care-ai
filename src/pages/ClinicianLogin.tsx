@@ -35,7 +35,7 @@ export default function ClinicianLogin() {
       }
 
       // Make API call using Axios
-      const response = await axios.post('/login/clinician', {
+      const response = await axios.post('http:localhost:7777/login/clinician', {
         email: result.data.email,
         password: result.data.password,
       });

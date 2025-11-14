@@ -14,14 +14,11 @@ import SymptomLog from "./pages/SymptomLog";
 import DeviceSetup from "./pages/DeviceSetup";
 import Heatmap from "./pages/Heatmap";
 import NotFound from "./pages/NotFound";
-<<<<<<< Updated upstream
 import AITesting from "./components/AITesting";
-=======
 import PatientLogin from "./pages/PatientLogin";
 import ClinicianLogin from "./pages/ClinicianLogin";
 import PatientSignup from "./pages/PatientSignup";
 import ClinicianSignup from "./pages/ClinicianSignup";
->>>>>>> Stashed changes
 
 const queryClient = new QueryClient();
 

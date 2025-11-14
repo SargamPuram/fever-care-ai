@@ -35,15 +35,16 @@ export default function PatientLogin() {
       }
 
       // Make API call using Axios
-      const response = await axios.post('/login/patient', {
+      const response = await axios.post('http://localhost:7777/login/patient', {
         email: result.data.email,
         password: result.data.password,
       });
+      console.log("Login Response",response)
 
       // Store token if returned
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-      }
+      // if (response.data.token) {
+      //   localStorage.setItem('authToken', response.data.token);
+      // }
 
       toast.success("Logged in successfully");
       navigate("/patient");
