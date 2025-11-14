@@ -64,7 +64,7 @@ function AITesting() {
     };
 
     try {
-      const response = await axios.post('http://localhost:7777/predict', apiData);
+      const response = await axios.post('http://localhost:7777/ml/predict', apiData);
       setResult(response.data);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to get prediction. Please try again.');
