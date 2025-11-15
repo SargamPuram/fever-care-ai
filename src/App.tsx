@@ -21,6 +21,7 @@ import PatientSignup from "./pages/PatientSignup";
 import ClinicianSignup from "./pages/ClinicianSignup";
 import PatientDashboardd from "./pages/PatientDashboardd";
 import AdvancedAI from "./components/AdvancedAI";
+import ClinicianDashboardd from "./pages/ClinicianDashboardd";
 
 
 const queryClient = new QueryClient();
@@ -40,6 +41,8 @@ const App = () => (
           <Route path="/signin-clinician" element={<ClinicianLogin />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/patient-dashboard" element={<PatientDashboardd />} />
+          <Route path="/clinician-dashboard" element={<ClinicianDashboardd />} />
+          <Route path="/patient" element={<PatientDashboard />} />
           <Route path="/chatbot" element={<Chatbot />} />
           <Route path="/symptom-log" element={<SymptomLog />} />
           <Route path="/device-setup" element={<DeviceSetup />} />

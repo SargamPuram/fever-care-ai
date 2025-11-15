@@ -1,15 +1,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-// import { supabase } from "@/integrations/supabase/client"; // COMMENTED OUT - Backend will implement
+import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { ArrowLeft, Plus, Calendar, FileText, Activity } from "lucide-react";
+import { ArrowLeft, Plus, Calendar, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"; // ✅ ADD THIS
 import { z } from "zod";
 import { NewEpisodeForm } from "@/components/ui/NewEpisodeForm";
 import { DailyLogForm } from "@/components/ui/DailyLogForm";
@@ -43,66 +44,59 @@ const symptomSchema = z.object({
       })
     )
     .min(1, "Please select at least one symptom"),
+  tempTime: z.enum(["morning", "afternoon", "evening", "night"]).optional(), // ✅ ADD THIS
 });
 
 type ViewMode = "quick" | "episode" | "daily";
 
 export default function SymptomLog() {
   const navigate = useNavigate();
-  const [patientId, setPatientId] = useState<string>("demo_patient_123"); // Mock patient ID
+  const [activeEpisode, setActiveEpisode] = useState<any>(null);
   const [viewMode, setViewMode] = useState<ViewMode>("quick");
   const [selectedSymptoms, setSelectedSymptoms] = useState<
     Record<string, number>
   >({});
   const [notes, setNotes] = useState("");
   const [temperature, setTemperature] = useState("");
+  const [tempTime, setTempTime] = useState<string>("morning"); // ✅ ADD THIS
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // ============================================
-    // TODO: Replace with actual Supabase auth check
-    // ============================================
+    const token = localStorage.getItem("token");
+    if (!token) {
+      toast.error("Please login first");
+      navigate("/signin-patient");
+      return;
+    }
 
-    const fetchPatient = async () => {
-      // Mock auth check
-      console.log("📝 Checking user authentication...");
-
-      // Simulate delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Mock patient data
-      const mockPatient = {
-        id: "demo_patient_123",
-        user_id: "demo_user_123",
-        full_name: "Demo Patient",
-      };
-
-      console.log("✅ Patient loaded:", mockPatient);
-      setPatientId(mockPatient.id);
-
-      // ============================================
-      // Example Supabase call (to be implemented):
-      //
-      // const { data: { user } } = await supabase.auth.getUser();
-      // if (!user) {
-      //   navigate("/login");
-      //   return;
-      // }
-      //
-      // const { data: patient } = await supabase
-      //   .from("patients")
-      //   .select("id")
-      //   .eq("user_id", user.id)
-      //   .single();
-      //
-      // if (patient) {
-      //   setPatientId(patient.id);
-      // }
-      // ============================================
-    };
-
-    fetchPatient();
+    fetchPatientData();
   }, [navigate]);
+
+  const fetchPatientData = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await axios.get(
+        "http://localhost:7777/patient/episode/active",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success && response.data.hasActiveEpisode) {
+        setActiveEpisode(response.data.episode);
+      }
+    } catch (error: any) {
+      console.error("Error fetching patient data:", error);
+      if (error.response?.status === 401) {
+        localStorage.removeItem("token");
+        navigate("/signin-patient");
+      }
+    }
+  };
 
   const handleSymptomToggle = (symptom: string) => {
     setSelectedSymptoms((prev) => {
@@ -125,8 +119,6 @@ export default function SymptomLog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!patientId) return;
-
     setLoading(true);
 
     try {
@@ -143,6 +135,7 @@ export default function SymptomLog() {
         temperature: tempValue,
         notes: notes || undefined,
         symptoms: symptomsArray,
+        tempTime: tempTime as any, // ✅ ADD THIS
       });
 
       if (!result.success) {
@@ -151,58 +144,40 @@ export default function SymptomLog() {
         return;
       }
 
-      // ============================================
-      // TODO: Replace with actual Supabase API calls
-      // ============================================
+      const token = localStorage.getItem("token");
 
-      // Mock submission
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const response = await axios.post(
+        "http://localhost:7777/patient/symptoms/quick",
+        {
+          symptoms: result.data.symptoms,
+          temperature: result.data.temperature,
+          tempTime: result.data.tempTime, // ✅ ADD THIS
+          notes: result.data.notes,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      const mockSubmission = {
-        patient_id: patientId,
-        symptoms: result.data.symptoms,
-        temperature: result.data.temperature,
-        notes: result.data.notes,
-        recorded_at: new Date().toISOString(),
-      };
-
-      console.log("📝 Quick Symptoms to Submit:", mockSubmission);
-
-      // ============================================
-      // Example Supabase calls (to be implemented):
-      //
-      // const symptomsToInsert = result.data.symptoms.map(symptom => ({
-      //   patient_id: patientId,
-      //   symptom_type: symptom.symptom_type,
-      //   severity: symptom.severity,
-      //   notes: result.data.notes || null,
-      // }));
-      //
-      // const { error: symptomsError } = await supabase
-      //   .from("symptoms")
-      //   .insert(symptomsToInsert);
-      //
-      // if (symptomsError) throw symptomsError;
-      //
-      // if (result.data.temperature) {
-      //   const { error: tempError } = await supabase
-      //     .from("temperature_readings")
-      //     .insert([{
-      //       patient_id: patientId,
-      //       temperature: result.data.temperature,
-      //     }]);
-      //
-      //   if (tempError) throw tempError;
-      // }
-      // ============================================
-
-      toast.success("Symptoms logged successfully");
-      setSelectedSymptoms({});
-      setNotes("");
-      setTemperature("");
+      if (response.data.success) {
+        toast.success("Symptoms logged successfully");
+        setSelectedSymptoms({});
+        setNotes("");
+        setTemperature("");
+        setTempTime("morning"); // ✅ RESET THIS
+        fetchPatientData();
+      }
     } catch (error: any) {
-      console.error("❌ Error:", error);
-      toast.error("Failed to log symptoms");
+      console.error("Error:", error);
+      if (error.response?.status === 404) {
+        toast.error("Please start a fever episode first");
+        setViewMode("episode");
+      } else {
+        toast.error(error.response?.data?.message || "Failed to log symptoms");
+      }
     } finally {
       setLoading(false);
     }
@@ -213,33 +188,12 @@ export default function SymptomLog() {
       <div className="container max-w-4xl mx-auto p-4 space-y-4">
         <Button
           variant="ghost"
-          onClick={() => navigate("/patient")}
+          onClick={() => navigate("/patient-dashboard")}
           className="gap-2"
         >
           <ArrowLeft className="h-4 w-4" />
           Back
         </Button>
-
-        {/* Demo Mode Banner */}
-        <Card className="bg-blue-50 border-blue-200">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Activity className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <h3 className="font-semibold text-blue-900">
-                  Frontend Demo Mode
-                </h3>
-                <p className="text-sm text-blue-700 mt-1">
-                  All forms are using mock data. Database integration will be
-                  completed by backend team. Open browser console (F12) to see
-                  submitted data.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* View Mode Selector */}
         <Card>
@@ -293,13 +247,16 @@ export default function SymptomLog() {
                     ? "border-blue-500 bg-blue-50"
                     : "border-gray-200 hover:border-gray-300"
                 }`}
+                disabled={!activeEpisode}
               >
                 <div className="flex flex-col items-center text-center space-y-2">
                   <Calendar className="h-8 w-8 text-purple-600" />
                   <div>
                     <div className="font-semibold">Daily Log</div>
                     <div className="text-xs text-gray-500">
-                      Day-by-day tracking
+                      {activeEpisode
+                        ? `Day ${activeEpisode.dayOfIllness}`
+                        : "Need active episode"}
                     </div>
                   </div>
                 </div>
@@ -308,7 +265,7 @@ export default function SymptomLog() {
           </CardContent>
         </Card>
 
-        {/* Quick Symptom Log Form (Original) */}
+        {/* Quick Symptom Log Form */}
         {viewMode === "quick" && (
           <Card className="animate-scale-in">
             <CardHeader>
@@ -319,16 +276,66 @@ export default function SymptomLog() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="temperature">Temperature (°F)</Label>
-                  <Input
-                    id="temperature"
-                    type="number"
-                    step="0.1"
-                    placeholder="98.6"
-                    value={temperature}
-                    onChange={(e) => setTemperature(e.target.value)}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="temperature">Temperature (°F)</Label>
+                    <Input
+                      id="temperature"
+                      type="number"
+                      step="0.1"
+                      placeholder="98.6"
+                      value={temperature}
+                      onChange={(e) => setTemperature(e.target.value)}
+                    />
+                  </div>
+
+                  {/* ✅ ADD THIS: Time of Day Selector */}
+                  <div className="space-y-2">
+                    <Label>Time of Day</Label>
+                    <RadioGroup value={tempTime} onValueChange={setTempTime}>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="morning" id="quick-morning" />
+                          <Label
+                            htmlFor="quick-morning"
+                            className="cursor-pointer"
+                          >
+                            Morning
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value="afternoon"
+                            id="quick-afternoon"
+                          />
+                          <Label
+                            htmlFor="quick-afternoon"
+                            className="cursor-pointer"
+                          >
+                            Afternoon
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="evening" id="quick-evening" />
+                          <Label
+                            htmlFor="quick-evening"
+                            className="cursor-pointer"
+                          >
+                            Evening
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="night" id="quick-night" />
+                          <Label
+                            htmlFor="quick-night"
+                            className="cursor-pointer"
+                          >
+                            Night
+                          </Label>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -399,27 +406,37 @@ export default function SymptomLog() {
         {/* New Episode Form */}
         {viewMode === "episode" && (
           <NewEpisodeForm
-            patientId={patientId}
             onSuccess={(episode) => {
-              console.log("✅ Episode created:", episode);
               toast.success("Episode started successfully!");
-              // Auto-switch to daily log
+              setActiveEpisode(episode);
               setTimeout(() => setViewMode("daily"), 2000);
             }}
           />
         )}
 
         {/* Daily Log Form */}
-        {viewMode === "daily" && (
+        {viewMode === "daily" && activeEpisode && (
           <DailyLogForm
-            patientId={patientId}
-            episodeId="demo_episode_123"
-            dayNumber={1}
-            onSuccess={(log) => {
-              console.log("✅ Daily log saved:", log);
+            episodeId={activeEpisode._id}
+            dayNumber={activeEpisode.dayOfIllness}
+            onSuccess={() => {
               toast.success("Daily symptoms logged successfully!");
+              fetchPatientData();
             }}
           />
+        )}
+
+        {viewMode === "daily" && !activeEpisode && (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <p className="text-muted-foreground">
+                No active episode. Please start an episode first.
+              </p>
+              <Button onClick={() => setViewMode("episode")} className="mt-4">
+                Start Episode
+              </Button>
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>

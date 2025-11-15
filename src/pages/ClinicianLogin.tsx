@@ -3,7 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Activity, Loader2, Stethoscope } from "lucide-react";
@@ -27,35 +34,46 @@ export default function ClinicianLogin() {
     try {
       // Validate input
       const result = loginSchema.safeParse({ email, password });
-      
+
       if (!result.success) {
         toast.error(result.error.issues[0].message);
         setLoading(false);
         return;
       }
 
-      // Make API call using Axios
-      const response = await axios.post('http:localhost:7777/login/clinician', {
-        email: result.data.email,
-        password: result.data.password,
-      });
+      // ✅ FIXED: Added missing slash in URL
+      const response = await axios.post(
+        "http://localhost:7777/login/clinician",
+        {
+          email: result.data.email,
+          password: result.data.password,
+        }
+      );
 
-      // Store token if returned
-      if (response.data.token) {
-        localStorage.setItem('authToken', response.data.token);
-        localStorage.setItem('userRole', 'clinician');
+      // ✅ FIXED: Check for success and data structure
+      if (response.data.success && response.data.data.token) {
+        // Store token and user info
+        localStorage.setItem("token", response.data.data.token); // ✅ Use 'token' key like patient
+        localStorage.setItem("userRole", "clinician");
+        localStorage.setItem("userName", response.data.data.name);
+        localStorage.setItem("userEmail", response.data.data.email);
+
+        toast.success("Logged in successfully");
+        navigate("/clinician-dashboard"); // ✅ Updated route
+      } else {
+        toast.error("Login failed. Please try again.");
       }
+    } catch (error: any) {
+      console.error("Login error:", error);
 
-      toast.success("Logged in successfully");
-      navigate("/clinician");
-      
-    } catch (error) {
-      console.error('Login error:', error);
-      
       // Handle different error scenarios
       if (error.response) {
         // Server responded with error
-        toast.error(error.response.data.message || "Invalid credentials");
+        toast.error(
+          error.response.data.error ||
+            error.response.data.message ||
+            "Invalid credentials"
+        );
       } else if (error.request) {
         // Request made but no response
         toast.error("Unable to connect to server");
@@ -80,7 +98,7 @@ export default function ClinicianLogin() {
           <CardTitle className="text-2xl font-bold">Clinician Portal</CardTitle>
           <CardDescription>Access the medical staff dashboard</CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleLogin}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -95,7 +113,7 @@ export default function ClinicianLogin() {
                 className="transition-all focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -109,11 +127,11 @@ export default function ClinicianLogin() {
               />
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity" 
+            <Button
+              type="submit"
+              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
               disabled={loading}
             >
               {loading ? (
@@ -128,13 +146,19 @@ export default function ClinicianLogin() {
                 </>
               )}
             </Button>
-            
+
             <div className="flex items-center justify-between w-full text-sm">
-              <Link to="/signup-clinician" className="text-muted-foreground hover:text-primary">
-                ← Clinician signup
+              <Link
+                to="/signup-clinician"
+                className="text-muted-foreground hover:text-primary"
+              >
+                Register as Clinician →
               </Link>
-              <Link to="/forgot-password" className="text-primary hover:underline">
-                Forgot Password?
+              <Link
+                to="/signin-patient"
+                className="text-primary hover:underline"
+              >
+                Patient Login
               </Link>
             </div>
           </CardFooter>

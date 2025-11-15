@@ -1,41 +1,19 @@
-"use client";
-
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { FileText, CheckCircle2, Loader2 } from "lucide-react";
-import { z } from "zod";
-
-const episodeSchema = z.object({
-  priorAntibiotics: z.boolean(),
-  antibioticName: z.string().optional(),
-  hasDiabetes: z.boolean(),
-  immunocompromised: z.boolean(),
-  isPregnant: z.boolean(),
-  recentTravel: z.boolean(),
-  travelLocation: z.string().optional(),
-  mosquitoExposure: z.boolean(),
-  sickContacts: z.boolean(),
-  waterSource: z.enum(["filtered", "tap", "well", "outside"]),
-});
 
 interface NewEpisodeFormProps {
-  patientId?: string;
-  onSuccess?: (episode: any) => void;
+  onSuccess: (episode: any) => void;
 }
 
-export function NewEpisodeForm({ patientId, onSuccess }: NewEpisodeFormProps) {
+export function NewEpisodeForm({ onSuccess }: NewEpisodeFormProps) {
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     priorAntibiotics: false,
     antibioticName: "",
@@ -46,404 +24,275 @@ export function NewEpisodeForm({ patientId, onSuccess }: NewEpisodeFormProps) {
     travelLocation: "",
     mosquitoExposure: false,
     sickContacts: false,
-    waterSource: "filtered" as const,
+    waterSource: "filtered" as
+      | "filtered"
+      | "tap"
+      | "well"
+      | "outside"
+      | "unknown",
   });
-
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      // Validation
-      const result = episodeSchema.safeParse(formData);
+      const token = localStorage.getItem("token");
 
-      if (!result.success) {
-        toast.error(result.error.issues[0].message);
-        setLoading(false);
-        return;
+      const response = await axios.post(
+        "http://localhost:7777/patient/episode/start-with-history",
+        formData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.data.success) {
+        toast.success("Episode started successfully!");
+        onSuccess(response.data.episode);
       }
-
-      // ============================================
-      // TODO: Replace with actual Supabase API call
-      // ============================================
-
-      // Simulate API delay
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
-      // Mock response data
-      const mockEpisode = {
-        id: `episode_${Date.now()}`,
-        patient_id: patientId || "mock_patient_123",
-        status: "active",
-        started_at: new Date().toISOString(),
-        medical_history: {
-          priorAntibiotics: result.data.priorAntibiotics,
-          antibioticName: result.data.antibioticName,
-          hasDiabetes: result.data.hasDiabetes,
-          immunocompromised: result.data.immunocompromised,
-          isPregnant: result.data.isPregnant,
-        },
-        exposure_history: {
-          recentTravel: result.data.recentTravel,
-          travelLocation: result.data.travelLocation,
-          mosquitoExposure: result.data.mosquitoExposure,
-          sickContacts: result.data.sickContacts,
-          waterSource: result.data.waterSource,
-        },
-      };
-
-      console.log("📝 Episode Data to Submit:", mockEpisode);
-
-      // ============================================
-      // Example Supabase call (to be implemented):
-      //
-      // const { data, error } = await supabase
-      //   .from('fever_episodes')
-      //   .insert({
-      //     patient_id: patientId,
-      //     status: 'active',
-      //     ...formData
-      //   })
-      //   .select()
-      //   .single()
-      //
-      // if (error) throw error
-      // ============================================
-
-      setSuccess(true);
-      toast.success("Fever episode started successfully");
-
-      if (onSuccess) onSuccess(mockEpisode);
-
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setFormData({
-          priorAntibiotics: false,
-          antibioticName: "",
-          hasDiabetes: false,
-          immunocompromised: false,
-          isPregnant: false,
-          recentTravel: false,
-          travelLocation: "",
-          mosquitoExposure: false,
-          sickContacts: false,
-          waterSource: "filtered",
-        });
-        setSuccess(false);
-      }, 2000);
-    } catch (err: any) {
-      console.error("❌ Error:", err);
-      toast.error("Failed to start episode");
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error(error.response?.data?.message || "Failed to start episode");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Card className="border-2 border-border animate-scale-in">
-      <CardHeader className="border-b border-border">
+    <Card className="animate-scale-in">
+      <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-primary" />
-          Start Fever Tracking Episode
+          <FileText className="h-5 w-5" />
+          Start New Fever Episode
         </CardTitle>
-        <p className="text-sm text-muted-foreground mt-1">
-          Fill out your medical and exposure history to begin tracking
-        </p>
       </CardHeader>
-
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Medical History Section */}
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Prior Antibiotics */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold">Medical History</h3>
-              <span className="text-xs text-muted-foreground">
-                Required for risk assessment
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id="antibiotics"
-                  checked={formData.priorAntibiotics}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      priorAntibiotics: checked as boolean,
-                    })
-                  }
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="antibiotics"
-                    className="cursor-pointer font-medium"
-                  >
-                    Taken antibiotics in last 7 days?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Important for dengue diagnosis accuracy
-                  </p>
-                </div>
+            <Label>Have you taken antibiotics recently?</Label>
+            <RadioGroup
+              value={formData.priorAntibiotics.toString()}
+              onValueChange={(value) =>
+                setFormData({ ...formData, priorAntibiotics: value === "true" })
+              }
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="antibiotics-yes" />
+                <Label htmlFor="antibiotics-yes" className="cursor-pointer">
+                  Yes
+                </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="antibiotics-no" />
+                <Label htmlFor="antibiotics-no" className="cursor-pointer">
+                  No
+                </Label>
+              </div>
+            </RadioGroup>
 
-              {formData.priorAntibiotics && (
-                <div className="ml-11 animate-slide-up">
-                  <Label htmlFor="antibioticName">Which antibiotic?</Label>
-                  <Input
-                    id="antibioticName"
-                    value={formData.antibioticName}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        antibioticName: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., Amoxicillin, Ciprofloxacin"
-                    className="mt-2"
-                  />
-                </div>
-              )}
+            {formData.priorAntibiotics && (
+              <div className="pl-6 animate-slide-up">
+                <Label htmlFor="antibiotic-name">Antibiotic Name</Label>
+                <Input
+                  id="antibiotic-name"
+                  placeholder="e.g., Amoxicillin"
+                  value={formData.antibioticName}
+                  onChange={(e) =>
+                    setFormData({ ...formData, antibioticName: e.target.value })
+                  }
+                />
+              </div>
+            )}
+          </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+          {/* Medical Conditions */}
+          <div className="space-y-4">
+            <Label>Do you have any of these conditions?</Label>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="diabetes"
                   checked={formData.hasDiabetes}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      hasDiabetes: checked as boolean,
-                    })
+                  onChange={(e) =>
+                    setFormData({ ...formData, hasDiabetes: e.target.checked })
                   }
-                  className="mt-1"
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="diabetes"
-                    className="cursor-pointer font-medium"
-                  >
-                    Do you have diabetes?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Higher risk factor for complications
-                  </p>
-                </div>
+                <Label htmlFor="diabetes" className="cursor-pointer">
+                  Diabetes
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="immunocompromised"
                   checked={formData.immunocompromised}
-                  onCheckedChange={(checked) =>
+                  onChange={(e) =>
                     setFormData({
                       ...formData,
-                      immunocompromised: checked as boolean,
+                      immunocompromised: e.target.checked,
                     })
                   }
-                  className="mt-1"
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="immunocompromised"
-                    className="cursor-pointer font-medium"
-                  >
-                    On steroids or immunosuppressive drugs?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    For transplant, cancer, or autoimmune conditions
-                  </p>
-                </div>
+                <Label htmlFor="immunocompromised" className="cursor-pointer">
+                  Immunocompromised
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="pregnant"
                   checked={formData.isPregnant}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, isPregnant: checked as boolean })
+                  onChange={(e) =>
+                    setFormData({ ...formData, isPregnant: e.target.checked })
                   }
-                  className="mt-1"
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="pregnant"
-                    className="cursor-pointer font-medium"
-                  >
-                    Pregnant?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Requires special monitoring and care
-                  </p>
-                </div>
+                <Label htmlFor="pregnant" className="cursor-pointer">
+                  Pregnant
+                </Label>
               </div>
             </div>
           </div>
 
-          {/* Exposure History Section */}
+          {/* Travel History */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold">Exposure History</h3>
-              <span className="text-xs text-muted-foreground">
-                Last 14 days
-              </span>
-            </div>
-
-            <div className="space-y-4">
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id="travel"
-                  checked={formData.recentTravel}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      recentTravel: checked as boolean,
-                    })
-                  }
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="travel"
-                    className="cursor-pointer font-medium"
-                  >
-                    Traveled outside city in last 14 days?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Dengue incubation period is 4-10 days
-                  </p>
-                </div>
+            <Label>Have you traveled recently (last 2 weeks)?</Label>
+            <RadioGroup
+              value={formData.recentTravel.toString()}
+              onValueChange={(value) =>
+                setFormData({ ...formData, recentTravel: value === "true" })
+              }
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="true" id="travel-yes" />
+                <Label htmlFor="travel-yes" className="cursor-pointer">
+                  Yes
+                </Label>
               </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="false" id="travel-no" />
+                <Label htmlFor="travel-no" className="cursor-pointer">
+                  No
+                </Label>
+              </div>
+            </RadioGroup>
 
-              {formData.recentTravel && (
-                <div className="ml-11 animate-slide-up">
-                  <Label htmlFor="travelLocation">Where did you travel?</Label>
-                  <Input
-                    id="travelLocation"
-                    value={formData.travelLocation}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        travelLocation: e.target.value,
-                      })
-                    }
-                    placeholder="e.g., Mumbai, Kerala, Southeast Asia"
-                    className="mt-2"
-                  />
-                </div>
-              )}
+            {formData.recentTravel && (
+              <div className="pl-6 animate-slide-up">
+                <Label htmlFor="travel-location">Travel Location</Label>
+                <Input
+                  id="travel-location"
+                  placeholder="e.g., Mumbai, Delhi"
+                  value={formData.travelLocation}
+                  onChange={(e) =>
+                    setFormData({ ...formData, travelLocation: e.target.value })
+                  }
+                />
+              </div>
+            )}
+          </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+          {/* Exposure */}
+          <div className="space-y-4">
+            <Label>Exposure History</Label>
+
+            <div className="space-y-3">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="mosquito"
                   checked={formData.mosquitoExposure}
-                  onCheckedChange={(checked) =>
+                  onChange={(e) =>
                     setFormData({
                       ...formData,
-                      mosquitoExposure: checked as boolean,
+                      mosquitoExposure: e.target.checked,
                     })
                   }
-                  className="mt-1"
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="mosquito"
-                    className="cursor-pointer font-medium"
-                  >
-                    Mosquito bites or dengue cases in neighborhood?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Aedes mosquitoes are most active during daytime
-                  </p>
-                </div>
+                <Label htmlFor="mosquito" className="cursor-pointer">
+                  Mosquito Exposure 🦟
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id="contacts"
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="sick-contacts"
                   checked={formData.sickContacts}
-                  onCheckedChange={(checked) =>
-                    setFormData({
-                      ...formData,
-                      sickContacts: checked as boolean,
-                    })
+                  onChange={(e) =>
+                    setFormData({ ...formData, sickContacts: e.target.checked })
                   }
-                  className="mt-1"
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label
-                    htmlFor="contacts"
-                    className="cursor-pointer font-medium"
-                  >
-                    Contact with anyone having fever?
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Dengue outbreaks often affect communities
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="waterSource">Drinking water source?</Label>
-                <Select
-                  value={formData.waterSource}
-                  onValueChange={(value: any) =>
-                    setFormData({ ...formData, waterSource: value })
-                  }
-                >
-                  <SelectTrigger id="waterSource">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="filtered">
-                      Filtered/Boiled water
-                    </SelectItem>
-                    <SelectItem value="tap">Direct tap water</SelectItem>
-                    <SelectItem value="well">Well water</SelectItem>
-                    <SelectItem value="outside">Outside food/water</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-muted-foreground">
-                  Helps rule out typhoid and other waterborne infections
-                </p>
+                <Label htmlFor="sick-contacts" className="cursor-pointer">
+                  Contact with sick people
+                </Label>
               </div>
             </div>
           </div>
 
-          {/* Success Message */}
-          {success && (
-            <div className="flex items-center gap-3 p-4 bg-fever-normal/10 border border-fever-normal/30 rounded-lg animate-slide-up">
-              <CheckCircle2 className="h-5 w-5 text-fever-normal flex-shrink-0" />
-              <div>
-                <p className="font-semibold text-fever-normal">
-                  Episode started successfully!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Check console for submitted data
-                </p>
+          {/* Water Source */}
+          <div className="space-y-4">
+            <Label>Primary Water Source</Label>
+            <RadioGroup
+              value={formData.waterSource}
+              onValueChange={(value: any) =>
+                setFormData({ ...formData, waterSource: value })
+              }
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="filtered" id="water-filtered" />
+                <Label htmlFor="water-filtered" className="cursor-pointer">
+                  Filtered/Bottled Water
+                </Label>
               </div>
-            </div>
-          )}
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="tap" id="water-tap" />
+                <Label htmlFor="water-tap" className="cursor-pointer">
+                  Tap Water
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="well" id="water-well" />
+                <Label htmlFor="water-well" className="cursor-pointer">
+                  Well Water
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="outside" id="water-outside" />
+                <Label htmlFor="water-outside" className="cursor-pointer">
+                  Outside Water
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="unknown" id="water-unknown" />
+                <Label htmlFor="water-unknown" className="cursor-pointer">
+                  Unknown
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
 
-          {/* Submit Button */}
-          <Button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Creating Episode...
+                Starting Episode...
               </>
             ) : (
-              <>
-                <FileText className="mr-2 h-4 w-4" />
-                Start Tracking →
-              </>
+              "Start Episode"
             )}
           </Button>
         </form>

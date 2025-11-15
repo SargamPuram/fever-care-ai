@@ -1,532 +1,562 @@
-'use client'
-
-import { useState } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Checkbox } from '@/components/ui/checkbox'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { toast } from 'sonner'
-import { 
-  Calendar, 
-  Thermometer, 
-  Activity, 
-  AlertTriangle, 
-  CheckCircle2,
-  Loader2 
-} from 'lucide-react'
-import { z } from 'zod'
-
-const dailyLogSchema = z.object({
-  temperature: z.number()
-    .min(95, 'Temperature must be at least 95°F')
-    .max(108, 'Temperature must be at most 108°F'),
-  tempTime: z.enum(['morning', 'afternoon', 'evening', 'night']),
-  pulseRate: z.number().min(40).max(180).optional(),
-  symptoms: z.object({
-    headache: z.boolean(),
-    bodyPain: z.boolean(),
-    rash: z.boolean(),
-    rashLocation: z.string().optional(),
-    bleeding: z.boolean(),
-    bleedingSite: z.string().optional(),
-    abdominalPain: z.boolean(),
-    vomiting: z.boolean(),
-    vomitingCount: z.number().optional(),
-    breathlessness: z.boolean(),
-    confusion: z.boolean()
-  }),
-  foodIntake: z.enum(['normal', 'reduced', 'poor']),
-  urineOutput: z.enum(['normal', 'reduced', 'dark'])
-})
+import { useState } from "react";
+import axios from "axios";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 interface DailyLogFormProps {
-  patientId?: string
-  episodeId?: string
-  dayNumber?: number
-  onSuccess?: (log: any) => void
+  episodeId: string;
+  dayNumber: number;
+  onSuccess: () => void;
 }
 
-export function DailyLogForm({ 
-  patientId, 
+export function DailyLogForm({
   episodeId,
-  dayNumber = 1, 
-  onSuccess 
+  dayNumber,
+  onSuccess,
 }: DailyLogFormProps) {
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    temperature: '',
-    tempTime: 'afternoon' as const,
-    pulseRate: '',
+    temperature: "",
+    tempTime: "morning" as "morning" | "afternoon" | "evening" | "night",
+    pulseRate: "",
     symptoms: {
       headache: false,
       bodyPain: false,
       rash: false,
-      rashLocation: '',
+      rashLocation: "",
       bleeding: false,
-      bleedingSite: '',
+      bleedingSite: "",
       abdominalPain: false,
       vomiting: false,
-      vomitingCount: '',
+      vomitingCount: "",
       breathlessness: false,
-      confusion: false
+      confusion: false,
+      nausea: false,
     },
-    foodIntake: 'normal' as const,
-    urineOutput: 'normal' as const
-  })
-  
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+    foodIntake: "normal" as "normal" | "reduced" | "poor" | "nil",
+    urineOutput: "normal" as "normal" | "reduced" | "dark" | "bloody",
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+
+    if (!formData.temperature) {
+      toast.error("Please enter temperature");
+      return;
+    }
+
+    setLoading(true);
 
     try {
-      // Validation
-      const result = dailyLogSchema.safeParse({
-        temperature: parseFloat(formData.temperature),
-        tempTime: formData.tempTime,
-        pulseRate: formData.pulseRate ? parseInt(formData.pulseRate) : undefined,
-        symptoms: {
-          ...formData.symptoms,
-          vomitingCount: formData.symptoms.vomitingCount ? parseInt(formData.symptoms.vomitingCount) : undefined
+      const token = localStorage.getItem("token");
+
+      const response = await axios.post(
+        "http://localhost:7777/patient/symptoms/daily",
+        {
+          episodeId,
+          dayOfIllness: dayNumber,
+          temperature: parseFloat(formData.temperature),
+          tempTime: formData.tempTime,
+          pulseRate: formData.pulseRate ? parseInt(formData.pulseRate) : null,
+          symptoms: {
+            ...formData.symptoms,
+            vomitingCount: formData.symptoms.vomitingCount
+              ? parseInt(formData.symptoms.vomitingCount)
+              : null,
+          },
+          foodIntake: formData.foodIntake,
+          urineOutput: formData.urineOutput,
         },
-        foodIntake: formData.foodIntake,
-        urineOutput: formData.urineOutput
-      })
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      if (!result.success) {
-        toast.error(result.error.issues[0].message)
-        setLoading(false)
-        return
+      if (response.data.success) {
+        toast.success("Daily symptoms logged successfully!");
+        onSuccess();
+        // Reset form
+        setFormData({
+          temperature: "",
+          tempTime: "morning",
+          pulseRate: "",
+          symptoms: {
+            headache: false,
+            bodyPain: false,
+            rash: false,
+            rashLocation: "",
+            bleeding: false,
+            bleedingSite: "",
+            abdominalPain: false,
+            vomiting: false,
+            vomitingCount: "",
+            breathlessness: false,
+            confusion: false,
+            nausea: false,
+          },
+          foodIntake: "normal",
+          urineOutput: "normal",
+        });
       }
-
-      // ============================================
-      // TODO: Replace with actual Supabase API call
-      // ============================================
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000))
-
-      const mockLog = {
-        id: `log_${Date.now()}`,
-        episode_id: episodeId || 'mock_episode_123',
-        patient_id: patientId || 'mock_patient_123',
-        day_of_illness: dayNumber,
-        ...result.data,
-        recorded_at: new Date().toISOString()
-      }
-
-      console.log(`📝 Day ${dayNumber} Data to Submit:`, mockLog)
-
-      // ============================================
-      // Example Supabase call (to be implemented):
-      // 
-      // const { data, error } = await supabase
-      //   .from('symptom_logs')
-      //   .insert(mockLog)
-      //   .select()
-      //   .single()
-      //
-      // if (error) throw error
-      // ============================================
-
-      setSuccess(true)
-      toast.success(`Day ${dayNumber} symptoms logged successfully`)
-      
-      if (onSuccess) onSuccess(mockLog)
-      
-      setTimeout(() => setSuccess(false), 2000)
-
-    } catch (err: any) {
-      console.error('❌ Error:', err)
-      toast.error('Failed to save symptoms')
+    } catch (error: any) {
+      console.error("Error:", error);
+      toast.error(error.response?.data?.message || "Failed to log symptoms");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-  const updateSymptom = (key: keyof typeof formData.symptoms, value: any) => {
-    setFormData({
-      ...formData,
-      symptoms: { ...formData.symptoms, [key]: value }
-    })
-  }
-
-  const hasDangerSigns = formData.symptoms.bleeding || 
-                         formData.symptoms.breathlessness || 
-                         formData.symptoms.confusion || 
-                         formData.symptoms.abdominalPain
+  };
 
   return (
-    <Card className="border-2 border-border animate-scale-in">
-      <CardHeader className="border-b border-border">
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" />
-              Day {dayNumber} Symptom Log
-            </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Record your daily fever symptoms and vital signs
-            </p>
-          </div>
-          <Badge variant="outline" className="text-lg px-4 py-2">
-            Day {dayNumber}
-          </Badge>
-        </div>
+    <Card className="animate-scale-in">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Calendar className="h-5 w-5" />
+          Daily Symptom Log - Day {dayNumber}
+        </CardTitle>
       </CardHeader>
-      
-      <CardContent className="pt-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Vital Signs */}
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Vitals */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Activity className="h-5 w-5" />
-                Vital Signs
-              </h3>
-              <span className="text-xs text-muted-foreground">Required</span>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-4">
+            <h3 className="font-semibold text-lg">Vitals</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="temperature" className="flex items-center gap-2">
-                  <Thermometer className="h-4 w-4" />
-                  Temperature (°F) <span className="text-destructive">*</span>
+                <Label htmlFor="temperature">
+                  Temperature (°F) <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="temperature"
                   type="number"
                   step="0.1"
-                  min="95"
-                  max="108"
+                  placeholder="98.6"
                   value={formData.temperature}
-                  onChange={(e) => setFormData({...formData, temperature: e.target.value})}
-                  placeholder="103.5"
+                  onChange={(e) =>
+                    setFormData({ ...formData, temperature: e.target.value })
+                  }
                   required
-                  className="text-lg"
                 />
-                <p className="text-xs text-muted-foreground">
-                  Normal: 97-99°F | Fever: &gt;100.4°F
-                </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="tempTime">Time of reading</Label>
-                <Select 
-                  value={formData.tempTime} 
-                  onValueChange={(value: any) => setFormData({...formData, tempTime: value})}
+                <Label>Time of Measurement</Label>
+                <RadioGroup
+                  value={formData.tempTime}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, tempTime: value })
+                  }
+                  className="flex flex-wrap gap-4"
                 >
-                  <SelectTrigger id="tempTime">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="morning">Morning (6 AM - 12 PM)</SelectItem>
-                    <SelectItem value="afternoon">Afternoon (12 PM - 5 PM)</SelectItem>
-                    <SelectItem value="evening">Evening (5 PM - 9 PM)</SelectItem>
-                    <SelectItem value="night">Night (9 PM - 6 AM)</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="morning" id="time-morning" />
+                    <Label htmlFor="time-morning" className="cursor-pointer">
+                      Morning
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="afternoon" id="time-afternoon" />
+                    <Label htmlFor="time-afternoon" className="cursor-pointer">
+                      Afternoon
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="evening" id="time-evening" />
+                    <Label htmlFor="time-evening" className="cursor-pointer">
+                      Evening
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="night" id="time-night" />
+                    <Label htmlFor="time-night" className="cursor-pointer">
+                      Night
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="pulseRate">Pulse Rate (optional)</Label>
-              <Input
-                id="pulseRate"
-                type="number"
-                min="40"
-                max="180"
-                value={formData.pulseRate}
-                onChange={(e) => setFormData({...formData, pulseRate: e.target.value})}
-                placeholder="80"
-              />
-              <p className="text-xs text-muted-foreground">Normal: 60-100 bpm</p>
+              <div className="space-y-2">
+                <Label htmlFor="pulse">Pulse Rate (bpm)</Label>
+                <Input
+                  id="pulse"
+                  type="number"
+                  placeholder="72"
+                  value={formData.pulseRate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, pulseRate: e.target.value })
+                  }
+                />
+              </div>
             </div>
           </div>
 
-          {/* Symptoms Checklist */}
+          {/* Symptoms */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold">Symptoms Today</h3>
-              <span className="text-xs text-muted-foreground">Check all that apply</span>
-            </div>
-            
-            <div className="space-y-3">
-              {/* Common Symptoms */}
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+            <h3 className="font-semibold text-lg">Symptoms</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="headache"
                   checked={formData.symptoms.headache}
-                  onCheckedChange={(checked) => updateSymptom('headache', checked)}
-                  className="mt-1"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        headache: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="headache" className="cursor-pointer font-medium">
-                    Severe headache (especially behind eyes)
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Retro-orbital pain is common in dengue
-                  </p>
-                </div>
+                <Label htmlFor="headache" className="cursor-pointer">
+                  Headache
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="bodyPain"
                   checked={formData.symptoms.bodyPain}
-                  onCheckedChange={(checked) => updateSymptom('bodyPain', checked)}
-                  className="mt-1"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        bodyPain: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="bodyPain" className="cursor-pointer font-medium">
-                    Body/Joint pain
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Muscle and bone pain ("breakbone fever")
-                  </p>
-                </div>
+                <Label htmlFor="bodyPain" className="cursor-pointer">
+                  Body Pain
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id="rash"
-                  checked={formData.symptoms.rash}
-                  onCheckedChange={(checked) => updateSymptom('rash', checked)}
-                  className="mt-1"
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="nausea"
+                  checked={formData.symptoms.nausea}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        nausea: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="rash" className="cursor-pointer font-medium">
-                    Skin rash
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Usually appears on day 3-5
-                  </p>
-                </div>
+                <Label htmlFor="nausea" className="cursor-pointer">
+                  Nausea
+                </Label>
               </div>
 
-              {formData.symptoms.rash && (
-                <div className="ml-11 animate-slide-up">
-                  <Label htmlFor="rashLocation">Where is the rash?</Label>
-                  <Input
-                    id="rashLocation"
-                    value={formData.symptoms.rashLocation}
-                    onChange={(e) => updateSymptom('rashLocation', e.target.value)}
-                    placeholder="e.g., trunk, limbs, face"
-                    className="mt-2"
-                  />
-                </div>
-              )}
-
-              {/* Warning Signs */}
-              <div className="border-t pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <AlertTriangle className="h-5 w-5 text-accent" />
-                  <h4 className="font-semibold text-accent">Warning Signs</h4>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  Seek immediate medical attention if you have any of these:
-                </p>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                <Checkbox
-                  id="bleeding"
-                  checked={formData.symptoms.bleeding}
-                  onCheckedChange={(checked) => updateSymptom('bleeding', checked)}
-                  className="mt-1"
-                />
-                <div className="flex-1">
-                  <Label htmlFor="bleeding" className="cursor-pointer font-semibold text-destructive">
-                    Bleeding (gums, nose, stool, vomit)
-                  </Label>
-                  <p className="text-xs text-destructive/70 mt-1">
-                    Sign of severe dengue - seek immediate care
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start space-x-3 p-4 bg-accent/5 border border-accent/20 rounded-lg">
-                <Checkbox
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
                   id="abdominalPain"
                   checked={formData.symptoms.abdominalPain}
-                  onCheckedChange={(checked) => updateSymptom('abdominalPain', checked)}
-                  className="mt-1"
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        abdominalPain: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="abdominalPain" className="cursor-pointer font-semibold text-accent">
-                    Severe abdominal/stomach pain
-                  </Label>
-                  <p className="text-xs text-accent/70 mt-1">
-                    Can indicate plasma leakage
-                  </p>
-                </div>
+                <Label htmlFor="abdominalPain" className="cursor-pointer">
+                  Abdominal Pain
+                </Label>
               </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-muted/30 rounded-lg hover:bg-muted/50 transition-colors">
-                <Checkbox
-                  id="vomiting"
-                  checked={formData.symptoms.vomiting}
-                  onCheckedChange={(checked) => updateSymptom('vomiting', checked)}
-                  className="mt-1"
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="breathlessness"
+                  checked={formData.symptoms.breathlessness}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        breathlessness: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="vomiting" className="cursor-pointer font-medium">
-                    Vomiting
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Persistent vomiting is a warning sign
-                  </p>
-                </div>
+                <Label htmlFor="breathlessness" className="cursor-pointer">
+                  Breathlessness
+                </Label>
               </div>
 
-              {formData.symptoms.vomiting && (
-                <div className="ml-11 animate-slide-up">
-                  <Label htmlFor="vomitingCount">How many times today?</Label>
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="confusion"
+                  checked={formData.symptoms.confusion}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        confusion: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="confusion" className="cursor-pointer">
+                  Confusion
+                </Label>
+              </div>
+            </div>
+
+            {/* Rash */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="rash"
+                  checked={formData.symptoms.rash}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        rash: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
+                />
+                <Label htmlFor="rash" className="cursor-pointer">
+                  Rash
+                </Label>
+              </div>
+              {formData.symptoms.rash && (
+                <div className="pl-6 animate-slide-up">
+                  <Label htmlFor="rash-location">Rash Location</Label>
                   <Input
-                    id="vomitingCount"
-                    type="number"
-                    min="0"
-                    value={formData.symptoms.vomitingCount}
-                    onChange={(e) => updateSymptom('vomitingCount', e.target.value)}
-                    placeholder="Number of times"
-                    className="mt-2"
+                    id="rash-location"
+                    placeholder="e.g., Arms, Chest"
+                    value={formData.symptoms.rashLocation}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        symptoms: {
+                          ...formData.symptoms,
+                          rashLocation: e.target.value,
+                        },
+                      })
+                    }
                   />
                 </div>
               )}
+            </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                <Checkbox
-                  id="breathlessness"
-                  checked={formData.symptoms.breathlessness}
-                  onCheckedChange={(checked) => updateSymptom('breathlessness', checked)}
-                  className="mt-1"
+            {/* Bleeding */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="bleeding"
+                  checked={formData.symptoms.bleeding}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        bleeding: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="breathlessness" className="cursor-pointer font-semibold text-destructive">
-                    Difficulty breathing
-                  </Label>
-                  <p className="text-xs text-destructive/70 mt-1">
-                    Emergency sign - call ambulance immediately
-                  </p>
-                </div>
+                <Label
+                  htmlFor="bleeding"
+                  className="cursor-pointer text-red-600"
+                >
+                  Bleeding ⚠️
+                </Label>
               </div>
+              {formData.symptoms.bleeding && (
+                <div className="pl-6 animate-slide-up">
+                  <Label htmlFor="bleeding-site">Bleeding Site</Label>
+                  <Input
+                    id="bleeding-site"
+                    placeholder="e.g., Nose, Gums"
+                    value={formData.symptoms.bleedingSite}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        symptoms: {
+                          ...formData.symptoms,
+                          bleedingSite: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              )}
+            </div>
 
-              <div className="flex items-start space-x-3 p-4 bg-destructive/5 border border-destructive/20 rounded-lg">
-                <Checkbox
-                  id="confusion"
-                  checked={formData.symptoms.confusion}
-                  onCheckedChange={(checked) => updateSymptom('confusion', checked)}
-                  className="mt-1"
+            {/* Vomiting */}
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="vomiting"
+                  checked={formData.symptoms.vomiting}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      symptoms: {
+                        ...formData.symptoms,
+                        vomiting: e.target.checked,
+                      },
+                    })
+                  }
+                  className="h-4 w-4 rounded border-gray-300"
                 />
-                <div className="flex-1">
-                  <Label htmlFor="confusion" className="cursor-pointer font-semibold text-destructive">
-                    Confusion or altered consciousness
-                  </Label>
-                  <p className="text-xs text-destructive/70 mt-1">
-                    Emergency sign - seek immediate care
-                  </p>
-                </div>
+                <Label htmlFor="vomiting" className="cursor-pointer">
+                  Vomiting
+                </Label>
               </div>
+              {formData.symptoms.vomiting && (
+                <div className="pl-6 animate-slide-up">
+                  <Label htmlFor="vomiting-count">Number of Episodes</Label>
+                  <Input
+                    id="vomiting-count"
+                    type="number"
+                    placeholder="e.g., 3"
+                    value={formData.symptoms.vomitingCount}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        symptoms: {
+                          ...formData.symptoms,
+                          vomitingCount: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Daily Observations */}
+          {/* Observations */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h3 className="text-lg font-semibold">Daily Observations</h3>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="foodIntake">Food Intake</Label>
-                <Select 
-                  value={formData.foodIntake} 
-                  onValueChange={(value: any) => setFormData({...formData, foodIntake: value})}
+            <h3 className="font-semibold text-lg">Observations</h3>
+
+            <div className="space-y-4">
+              <div>
+                <Label>Food Intake</Label>
+                <RadioGroup
+                  value={formData.foodIntake}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, foodIntake: value })
+                  }
+                  className="flex flex-wrap gap-4 mt-2"
                 >
-                  <SelectTrigger id="foodIntake">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="reduced">Reduced</SelectItem>
-                    <SelectItem value="poor">Poor/None</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="normal" id="food-normal" />
+                    <Label htmlFor="food-normal" className="cursor-pointer">
+                      Normal
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="reduced" id="food-reduced" />
+                    <Label htmlFor="food-reduced" className="cursor-pointer">
+                      Reduced
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="poor" id="food-poor" />
+                    <Label htmlFor="food-poor" className="cursor-pointer">
+                      Poor
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="nil" id="food-nil" />
+                    <Label htmlFor="food-nil" className="cursor-pointer">
+                      Nil
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="urineOutput">Urine Output</Label>
-                <Select 
-                  value={formData.urineOutput} 
-                  onValueChange={(value: any) => setFormData({...formData, urineOutput: value})}
+              <div>
+                <Label>Urine Output</Label>
+                <RadioGroup
+                  value={formData.urineOutput}
+                  onValueChange={(value: any) =>
+                    setFormData({ ...formData, urineOutput: value })
+                  }
+                  className="flex flex-wrap gap-4 mt-2"
                 >
-                  <SelectTrigger id="urineOutput">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="normal">Normal (light yellow)</SelectItem>
-                    <SelectItem value="reduced">Reduced frequency</SelectItem>
-                    <SelectItem value="dark">Dark colored</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="normal" id="urine-normal" />
+                    <Label htmlFor="urine-normal" className="cursor-pointer">
+                      Normal
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="reduced" id="urine-reduced" />
+                    <Label htmlFor="urine-reduced" className="cursor-pointer">
+                      Reduced
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dark" id="urine-dark" />
+                    <Label htmlFor="urine-dark" className="cursor-pointer">
+                      Dark
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="bloody" id="urine-bloody" />
+                    <Label
+                      htmlFor="urine-bloody"
+                      className="cursor-pointer text-red-600"
+                    >
+                      Bloody ⚠️
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
           </div>
 
-          {/* Danger Sign Alert */}
-          {hasDangerSigns && (
-            <div className="flex items-start gap-3 p-4 bg-destructive/10 border border-destructive/30 rounded-lg animate-slide-up">
-              <AlertTriangle className="h-6 w-6 text-destructive flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-bold text-destructive">Warning Signs Detected!</p>
-                <p className="text-sm text-destructive/80 mt-1">
-                  You have reported danger signs. Please seek immediate medical attention or call emergency services (108).
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Success Message */}
-          {success && (
-            <div className="flex items-center gap-3 p-4 bg-fever-normal/10 border border-fever-normal/30 rounded-lg animate-slide-up">
-              <CheckCircle2 className="h-5 w-5 text-fever-normal flex-shrink-0" />
-              <div>
-                <p className="font-semibold text-fever-normal">Day {dayNumber} symptoms saved!</p>
-                <p className="text-sm text-muted-foreground">Check console for submitted data</p>
-              </div>
-            </div>
-          )}
-
-          {/* Submit Button */}
-          <Button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
-          >
+          <Button type="submit" className="w-full" disabled={loading}>
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
               </>
             ) : (
-              <>
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Save Day {dayNumber} Log
-              </>
+              "Save Daily Log"
             )}
           </Button>
         </form>
       </CardContent>
     </Card>
-  )
+  );
 }

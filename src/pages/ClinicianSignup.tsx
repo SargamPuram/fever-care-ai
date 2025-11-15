@@ -3,7 +3,14 @@ import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Stethoscope, Loader2 } from "lucide-react";
@@ -29,28 +36,41 @@ export default function ClinicianSignup() {
     try {
       // Validate input
       const result = signupSchema.safeParse({ name, email, password });
-      
+
       if (!result.success) {
         toast.error(result.error.issues[0].message);
         setLoading(false);
         return;
       }
 
-      // Make API call using Axios
-      const response = await axios.post('http:localhost:7777/signup/clinician', {
-        name: result.data.name,
-        email: result.data.email,
-        password: result.data.password,
-      });
+      // ✅ FIXED: Added missing slash in URL
+      const response = await axios.post(
+        "http://localhost:7777/signup/clinician",
+        {
+          name: result.data.name,
+          email: result.data.email,
+          password: result.data.password,
+        }
+      );
 
-      toast.success("Account created successfully! Please login.");
-      navigate("/login/clinician");
-      
-    } catch (error) {
-      console.error('Signup error:', error);
-      
+      // ✅ Check if signup was successful
+      if (response.data.success) {
+        toast.success("Account created successfully! Please login.");
+        // ✅ FIXED: Corrected navigation route
+        navigate("/signin-clinician");
+      } else {
+        toast.error(response.data.error || "Signup failed");
+      }
+    } catch (error: any) {
+      console.error("Signup error:", error);
+
+      // ✅ FIXED: Check for 'error' field instead of 'message'
       if (error.response) {
-        toast.error(error.response.data.message || "Signup failed");
+        toast.error(
+          error.response.data.error ||
+            error.response.data.message ||
+            "Signup failed"
+        );
       } else if (error.request) {
         toast.error("Unable to connect to server");
       } else {
@@ -70,10 +90,14 @@ export default function ClinicianSignup() {
               <Stethoscope className="h-8 w-8 text-primary-foreground" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Clinician Registration</CardTitle>
-          <CardDescription>Create your medical professional account</CardDescription>
+          <CardTitle className="text-2xl font-bold">
+            Clinician Registration
+          </CardTitle>
+          <CardDescription>
+            Create your medical professional account
+          </CardDescription>
         </CardHeader>
-        
+
         <form onSubmit={handleSignup}>
           <CardContent className="space-y-4">
             <div className="space-y-2">
@@ -101,7 +125,7 @@ export default function ClinicianSignup() {
                 className="transition-all focus:ring-2 focus:ring-primary"
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
               <Input
@@ -118,11 +142,11 @@ export default function ClinicianSignup() {
               </p>
             </div>
           </CardContent>
-          
+
           <CardFooter className="flex flex-col space-y-4">
-            <Button 
-              type="submit" 
-              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity" 
+            <Button
+              type="submit"
+              className="w-full bg-gradient-primary hover:opacity-90 transition-opacity"
               disabled={loading}
             >
               {loading ? (
@@ -137,10 +161,13 @@ export default function ClinicianSignup() {
                 </>
               )}
             </Button>
-            
+
             <p className="text-sm text-center text-muted-foreground">
               Already have an account?{" "}
-              <Link to="/signin-clinician" className="text-primary hover:underline font-medium">
+              <Link
+                to="/signin-clinician"
+                className="text-primary hover:underline font-medium"
+              >
                 Sign in
               </Link>
             </p>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ import {
   AlertTriangle,
   Loader2,
   LogOut,
+  X,
+  Clock,
 } from "lucide-react";
 import {
   LineChart,
@@ -43,6 +45,7 @@ interface Episode {
 }
 
 interface SymptomLog {
+  _id: string;
   dayOfIllness: number;
   temperature: number;
   tempTime: string;
@@ -94,18 +97,33 @@ interface DashboardResponse {
 interface TemperatureChartData {
   time: string;
   temp: number;
+  day: number;
+}
+
+interface DayDetailData {
+  time: string;
+  temp: number;
+  tempTime: string;
+  createdAt: string;
 }
 
 const PatientDashboardd = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("home");
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [currentTemp, setCurrentTemp] = useState(98.6);
-  const [feverStatus, setFeverStatus] = useState<"normal" | "mild" | "moderate" | "high">("normal");
+  const [feverStatus, setFeverStatus] = useState<
+    "normal" | "mild" | "moderate" | "high"
+  >("normal");
+
+  // ✅ NEW: State for drill-down view
+  const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [showDayDetail, setShowDayDetail] = useState(false);
 
   useEffect(() => {
-    // Check if token exists
     const token = localStorage.getItem("token");
     if (!token) {
       toast.error("Please login first");
@@ -119,23 +137,24 @@ const PatientDashboardd = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      
-      // Get token from localStorage
+
       const token = localStorage.getItem("token");
-      
+
       if (!token) {
         toast.error("No authentication token found");
         navigate("/signin-patient");
         return;
       }
 
-      // Make API call with token
-      const response = await axios.get("http://localhost:7777/patient/dashboard", {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const response = await axios.get(
+        "http://localhost:7777/patient/dashboard",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
       if (response.data.success) {
         const data: DashboardData = {
@@ -150,7 +169,6 @@ const PatientDashboardd = () => {
 
         setDashboardData(data);
 
-        // Set current temperature from latest log
         if (data.symptomLogs && data.symptomLogs.length > 0) {
           const latest = data.symptomLogs[data.symptomLogs.length - 1];
           setCurrentTemp(latest.temperature);
@@ -159,7 +177,7 @@ const PatientDashboardd = () => {
       }
     } catch (error: any) {
       console.error("Dashboard error:", error);
-      
+
       if (error.response?.status === 401) {
         toast.error("Session expired. Please login again.");
         localStorage.removeItem("token");
@@ -168,7 +186,9 @@ const PatientDashboardd = () => {
         localStorage.removeItem("userEmail");
         navigate("/signin-patient");
       } else {
-        toast.error(error.response?.data?.message || "Failed to load dashboard");
+        toast.error(
+          error.response?.data?.message || "Failed to load dashboard"
+        );
       }
     } finally {
       setLoading(false);
@@ -203,7 +223,7 @@ const PatientDashboardd = () => {
   const handleStartEpisode = async () => {
     try {
       const token = localStorage.getItem("token");
-      
+
       if (!token) {
         toast.error("Please login first");
         navigate("/signin-patient");
@@ -223,7 +243,7 @@ const PatientDashboardd = () => {
 
       if (response.data.success) {
         toast.success("Fever episode started!");
-        fetchDashboardData(); // Refresh dashboard
+        fetchDashboardData();
       }
     } catch (error: any) {
       toast.error(error.response?.data?.message || "Failed to start episode");
@@ -239,12 +259,84 @@ const PatientDashboardd = () => {
     navigate("/signin-patient");
   };
 
-  // Format temperature data for chart
-  const temperatureData: TemperatureChartData[] =
-    dashboardData?.symptomLogs.map((log) => ({
-      time: `Day ${log.dayOfIllness}`,
-      temp: log.temperature,
-    })) || [];
+  // ✅ LEVEL 1: Overview Chart (One point per day - average/latest)
+  const temperatureData: TemperatureChartData[] = useMemo(() => {
+    if (!dashboardData?.symptomLogs || dashboardData.symptomLogs.length === 0) {
+      return [];
+    }
+
+    // Group by day and calculate average temperature
+    const dayMap = new Map<number, { temps: number[]; logs: SymptomLog[] }>();
+
+    dashboardData.symptomLogs.forEach((log) => {
+      if (!dayMap.has(log.dayOfIllness)) {
+        dayMap.set(log.dayOfIllness, { temps: [], logs: [] });
+      }
+      dayMap.get(log.dayOfIllness)!.temps.push(log.temperature);
+      dayMap.get(log.dayOfIllness)!.logs.push(log);
+    });
+
+    // Convert to array with average temperature
+    return Array.from(dayMap.entries())
+      .sort(([dayA], [dayB]) => dayA - dayB)
+      .map(([day, data]) => {
+        const avgTemp =
+          data.temps.reduce((sum, t) => sum + t, 0) / data.temps.length;
+        return {
+          time: `Day ${day}`,
+          temp: parseFloat(avgTemp.toFixed(1)),
+          day: day,
+        };
+      });
+  }, [dashboardData?.symptomLogs]);
+
+  // ✅ LEVEL 2: Detailed Chart (All readings for selected day)
+  const dayDetailData: DayDetailData[] = useMemo(() => {
+    if (!dashboardData?.symptomLogs || selectedDay === null) {
+      return [];
+    }
+
+    const timeOrder = { morning: 1, afternoon: 2, evening: 3, night: 4 };
+
+    return dashboardData.symptomLogs
+      .filter((log) => log.dayOfIllness === selectedDay)
+      .sort((a, b) => {
+        const timeA = timeOrder[a.tempTime as keyof typeof timeOrder] || 0;
+        const timeB = timeOrder[b.tempTime as keyof typeof timeOrder] || 0;
+        return timeA - timeB;
+      })
+      .map((log, index) => {
+        const timeLabel = log.tempTime
+          ? log.tempTime.charAt(0).toUpperCase() + log.tempTime.slice(1)
+          : `Reading ${index + 1}`;
+
+        return {
+          time: timeLabel,
+          temp: log.temperature,
+          tempTime: log.tempTime || "unknown",
+          createdAt: log.createdAt,
+        };
+      });
+  }, [dashboardData?.symptomLogs, selectedDay]);
+
+  // Get current day number
+  const currentDayOfIllness = useMemo(() => {
+    if (!dashboardData?.symptomLogs || dashboardData.symptomLogs.length === 0) {
+      return 0;
+    }
+    return Math.max(
+      ...dashboardData.symptomLogs.map((log) => log.dayOfIllness)
+    );
+  }, [dashboardData?.symptomLogs]);
+
+  // ✅ Handle chart click
+  const handleChartClick = (data: any) => {
+    if (data && data.activePayload && data.activePayload[0]) {
+      const clickedDay = data.activePayload[0].payload.day;
+      setSelectedDay(clickedDay);
+      setShowDayDetail(true);
+    }
+  };
 
   if (loading) {
     return (
@@ -266,7 +358,10 @@ const PatientDashboardd = () => {
             </div>
             <div className="flex items-center gap-4">
               <div className="relative">
-                <Bell className="h-6 w-6 cursor-pointer" onClick={() => setActiveTab("alerts")} />
+                <Bell
+                  className="h-6 w-6 cursor-pointer"
+                  onClick={() => setActiveTab("alerts")}
+                />
                 {dashboardData?.alerts && dashboardData.alerts.length > 0 && (
                   <span className="absolute -top-1 -right-1 h-4 w-4 bg-destructive rounded-full text-xs flex items-center justify-center">
                     {dashboardData.alerts.length}
@@ -283,10 +378,15 @@ const PatientDashboardd = () => {
             </div>
           </div>
           <h1 className="text-2xl font-bold mb-1">
-            Welcome back, {localStorage.getItem("userName") || dashboardData?.user?.name || "Patient"}
+            Welcome back,{" "}
+            {localStorage.getItem("userName") ||
+              dashboardData?.user?.name ||
+              "Patient"}
           </h1>
           <p className="text-primary-foreground/80 text-sm">
-            {dashboardData?.hasActiveEpisode ? "Active fever episode" : "Healthy status"}
+            {dashboardData?.hasActiveEpisode
+              ? "Active fever episode"
+              : "Healthy status"}
           </p>
         </div>
       </header>
@@ -295,17 +395,22 @@ const PatientDashboardd = () => {
       <main className="container mx-auto px-4 -mt-8">
         {activeTab === "home" && (
           <div className="space-y-4">
-            {/* No Active Episode */}
             {!dashboardData?.hasActiveEpisode && (
               <Card className="p-6 border-2 border-border animate-scale-in">
                 <div className="text-center space-y-4">
                   <Thermometer className="h-16 w-16 mx-auto text-muted-foreground" />
                   <div>
-                    <h3 className="text-xl font-bold mb-2">No Active Fever Episode</h3>
+                    <h3 className="text-xl font-bold mb-2">
+                      No Active Fever Episode
+                    </h3>
                     <p className="text-muted-foreground mb-4">
-                      Start tracking your fever to get AI-powered diagnosis and monitoring
+                      Start tracking your fever to get AI-powered diagnosis and
+                      monitoring
                     </p>
-                    <Button onClick={handleStartEpisode} className="bg-gradient-primary">
+                    <Button
+                      onClick={handleStartEpisode}
+                      className="bg-gradient-primary"
+                    >
                       <Activity className="mr-2 h-4 w-4" />
                       Start Fever Tracking
                     </Button>
@@ -314,15 +419,15 @@ const PatientDashboardd = () => {
               </Card>
             )}
 
-            {/* Active Episode */}
             {dashboardData?.hasActiveEpisode && (
               <>
-                {/* Fever Status Card */}
                 <Card className="p-6 border-2 border-border animate-scale-in hover-lift">
                   <div className="flex items-center justify-between mb-4">
                     <h2 className="text-lg font-semibold">Current Status</h2>
                     <Badge
-                      variant={feverStatus === "normal" ? "secondary" : "destructive"}
+                      variant={
+                        feverStatus === "normal" ? "secondary" : "destructive"
+                      }
                       className="animate-pulse-slow"
                     >
                       {feverStatus === "normal" ? "Healthy" : "Monitoring"}
@@ -332,7 +437,9 @@ const PatientDashboardd = () => {
                     <div className={`relative ${getFeverColor()}`}>
                       <div className="text-center">
                         <Thermometer className="h-20 w-20 mx-auto mb-2" />
-                        <span className="text-3xl font-bold">{currentTemp}°F</span>
+                        <span className="text-3xl font-bold">
+                          {currentTemp}°F
+                        </span>
                       </div>
                     </div>
                     <div className="flex-1">
@@ -340,21 +447,33 @@ const PatientDashboardd = () => {
                         <div>
                           <div className="flex justify-between text-sm mb-1">
                             <span>Fever Level</span>
-                            <span className="font-medium capitalize">{feverStatus}</span>
+                            <span className="font-medium capitalize">
+                              {feverStatus}
+                            </span>
                           </div>
-                          <Progress value={(currentTemp - 97) * 20} className="h-2" />
+                          <Progress
+                            value={(currentTemp - 97) * 20}
+                            className="h-2"
+                          />
                         </div>
                         {dashboardData.latestPrediction && (
                           <div className="p-3 bg-muted rounded-lg">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">AI Diagnosis:</span>
+                              <span className="text-sm font-medium">
+                                AI Diagnosis:
+                              </span>
                               <Badge className="capitalize">
-                                {dashboardData.latestPrediction.primaryDiagnosis}
+                                {
+                                  dashboardData.latestPrediction
+                                    .primaryDiagnosis
+                                }
                               </Badge>
                             </div>
                             <div className="text-xs text-muted-foreground mt-1">
-                              Confidence: {dashboardData.latestPrediction.confidenceScore}% |
-                              Urgency: {dashboardData.latestPrediction.urgency}
+                              Confidence:{" "}
+                              {dashboardData.latestPrediction.confidenceScore}%
+                              | Urgency:{" "}
+                              {dashboardData.latestPrediction.urgency}
                             </div>
                           </div>
                         )}
@@ -368,7 +487,7 @@ const PatientDashboardd = () => {
                   </div>
                 </Card>
 
-                {/* Temperature Trend */}
+                {/* ✅ LEVEL 1: Overview Temperature Trend */}
                 {temperatureData.length > 0 && (
                   <Card className="p-6 border-2 border-border animate-slide-up hover-lift">
                     <div className="flex items-center justify-between mb-4">
@@ -376,15 +495,28 @@ const PatientDashboardd = () => {
                         <TrendingUp className="h-5 w-5 text-primary" />
                         Temperature Trend
                       </h2>
-                      <Badge variant="outline">
-                        Day {dashboardData.symptomLogs[dashboardData.symptomLogs.length - 1]?.dayOfIllness}
-                      </Badge>
+                      <Badge variant="outline">Day {currentDayOfIllness}</Badge>
                     </div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Click on any day to see detailed readings
+                    </p>
                     <ResponsiveContainer width="100%" height={200}>
-                      <LineChart data={temperatureData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                        <XAxis dataKey="time" stroke="hsl(var(--muted-foreground))" />
-                        <YAxis domain={[97, 105]} stroke="hsl(var(--muted-foreground))" />
+                      <LineChart
+                        data={temperatureData}
+                        onClick={handleChartClick}
+                      >
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="hsl(var(--border))"
+                        />
+                        <XAxis
+                          dataKey="time"
+                          stroke="hsl(var(--muted-foreground))"
+                        />
+                        <YAxis
+                          domain={[97, 105]}
+                          stroke="hsl(var(--muted-foreground))"
+                        />
                         <Tooltip
                           contentStyle={{
                             backgroundColor: "hsl(var(--card))",
@@ -397,11 +529,105 @@ const PatientDashboardd = () => {
                           dataKey="temp"
                           stroke="hsl(var(--primary))"
                           strokeWidth={3}
-                          dot={{ fill: "hsl(var(--primary))", r: 4 }}
-                          activeDot={{ r: 6 }}
+                          dot={{
+                            fill: "hsl(var(--primary))",
+                            r: 6,
+                            cursor: "pointer",
+                          }}
+                          activeDot={{ r: 8, cursor: "pointer" }}
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                  </Card>
+                )}
+
+                {/* ✅ LEVEL 2: Day Detail Modal/Card */}
+                {showDayDetail && selectedDay !== null && (
+                  <Card className="p-6 border-2 border-primary animate-scale-in">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-primary" />
+                        Day {selectedDay} - Detailed Readings
+                      </h3>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setShowDayDetail(false);
+                          setSelectedDay(null);
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {dayDetailData.length > 0 ? (
+                      <>
+                        <ResponsiveContainer width="100%" height={200}>
+                          <LineChart data={dayDetailData}>
+                            <CartesianGrid
+                              strokeDasharray="3 3"
+                              stroke="hsl(var(--border))"
+                            />
+                            <XAxis
+                              dataKey="time"
+                              stroke="hsl(var(--muted-foreground))"
+                            />
+                            <YAxis
+                              domain={[97, 105]}
+                              stroke="hsl(var(--muted-foreground))"
+                            />
+                            <Tooltip
+                              contentStyle={{
+                                backgroundColor: "hsl(var(--card))",
+                                border: "1px solid hsl(var(--border))",
+                                borderRadius: "8px",
+                              }}
+                            />
+                            <Line
+                              type="monotone"
+                              dataKey="temp"
+                              stroke="hsl(var(--chart-2))"
+                              strokeWidth={3}
+                              dot={{ fill: "hsl(var(--chart-2))", r: 5 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+
+                        {/* Reading Details Table */}
+                        <div className="mt-4 space-y-2">
+                          <h4 className="font-semibold text-sm">
+                            All Readings:
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {dayDetailData.map((reading, index) => (
+                              <div
+                                key={index}
+                                className="p-3 bg-muted rounded-lg flex items-center justify-between"
+                              >
+                                <div>
+                                  <span className="font-medium">
+                                    {reading.time}
+                                  </span>
+                                  <span className="text-xs text-muted-foreground block">
+                                    {new Date(
+                                      reading.createdAt
+                                    ).toLocaleTimeString()}
+                                  </span>
+                                </div>
+                                <span className="text-lg font-bold">
+                                  {reading.temp}°F
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-muted-foreground text-center">
+                        No readings found for Day {selectedDay}
+                      </p>
+                    )}
                   </Card>
                 )}
 
@@ -413,7 +639,9 @@ const PatientDashboardd = () => {
                   >
                     <FileText className="h-8 w-8 text-primary mb-2" />
                     <h3 className="font-semibold mb-1">Log Symptoms</h3>
-                    <p className="text-xs text-muted-foreground">Record today's symptoms</p>
+                    <p className="text-xs text-muted-foreground">
+                      Record today's symptoms
+                    </p>
                   </Card>
                   <Card
                     className="p-4 border-2 border-border hover-lift cursor-pointer animate-scale-in"
@@ -421,26 +649,32 @@ const PatientDashboardd = () => {
                   >
                     <MessageSquare className="h-8 w-8 text-primary mb-2" />
                     <h3 className="font-semibold mb-1">AI Assistant</h3>
-                    <p className="text-xs text-muted-foreground">Get health guidance</p>
+                    <p className="text-xs text-muted-foreground">
+                      Get health guidance
+                    </p>
                   </Card>
                 </div>
 
-                {/* Medications */}
                 {dashboardData.medications.length > 0 && (
                   <PatientMedications medications={dashboardData.medications} />
                 )}
 
-                {/* Alerts */}
                 {dashboardData.alerts.length > 0 && (
                   <Card className="p-4 border-2 border-accent/20 bg-accent/5 animate-slide-up">
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-accent mt-0.5" />
                       <div className="flex-1">
-                        <h3 className="font-semibold mb-1">{dashboardData.alerts[0].message}</h3>
+                        <h3 className="font-semibold mb-1">
+                          {dashboardData.alerts[0].message}
+                        </h3>
                         <p className="text-sm text-muted-foreground mb-2">
                           Severity: {dashboardData.alerts[0].severity}
                         </p>
-                        <Button size="sm" variant="outline" onClick={() => setActiveTab("alerts")}>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setActiveTab("alerts")}
+                        >
                           View All Alerts
                         </Button>
                       </div>
@@ -461,7 +695,13 @@ const PatientDashboardd = () => {
                   {dashboardData.alerts.map((alert) => (
                     <div key={alert._id} className="p-4 border rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <Badge variant={alert.severity === "critical" ? "destructive" : "default"}>
+                        <Badge
+                          variant={
+                            alert.severity === "critical"
+                              ? "destructive"
+                              : "default"
+                          }
+                        >
                           {alert.severity}
                         </Badge>
                         <span className="text-xs text-muted-foreground">
