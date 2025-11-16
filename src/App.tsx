@@ -22,7 +22,7 @@ import ClinicianSignup from "./pages/ClinicianSignup";
 import PatientDashboardd from "./pages/PatientDashboardd";
 import AdvancedAI from "./components/AdvancedAI";
 import ClinicianDashboardd from "./pages/ClinicianDashboardd";
-
+import DiseaseMap from "./components/DiseaseMap"
 
 const queryClient = new QueryClient();
 
@@ -51,6 +51,7 @@ const App = () => (
           <Route path="/heatmap" element={<Heatmap />} />
           <Route path="/ai-test" element={<AITesting />} />
           <Route path="/adv" element={<AdvancedAI />} />
+          <Route path="/disease-map" element={<DiseaseMap />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
@@ -59,3 +60,4 @@ const App = () => (
 );
 
 export default App;
+

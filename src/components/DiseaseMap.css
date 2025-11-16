@@ -1,0 +1,328 @@
+.disease-map-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+  background: #f5f5f5;
+  min-height: 100vh;
+}
+
+.map-header {
+  text-align: center;
+  margin-bottom: 30px;
+  padding: 20px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.map-header h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.map-header p {
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Summary Cards */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.summary-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  border-left: 5px solid;
+  transition: transform 0.3s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+.summary-card.dengue { border-left-color: #ff4444; }
+.summary-card.malaria { border-left-color: #44ff44; }
+.summary-card.typhoid { border-left-color: #4444ff; }
+.summary-card.viral { border-left-color: #ffaa00; }
+
+.summary-card h3 {
+  font-size: 1.2rem;
+  margin-bottom: 10px;
+  color: #333;
+}
+
+.summary-card .count {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 10px 0;
+  color: #333;
+}
+
+.summary-card .label {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+/* Filters */
+.map-filters {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.map-filters button {
+  padding: 10px 20px;
+  border: 2px solid #ddd;
+  background: white;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  font-size: 1rem;
+}
+
+.map-filters button:hover {
+  border-color: #333;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.map-filters button.active {
+  background: #333;
+  color: white;
+  border-color: #333;
+}
+
+.map-filters button.dengue-btn.active {
+  background: #ff4444;
+  border-color: #ff4444;
+}
+
+.map-filters button.malaria-btn.active {
+  background: #44ff44;
+  border-color: #44ff44;
+  color: #000;
+}
+
+.map-filters button.typhoid-btn.active {
+  background: #4444ff;
+  border-color: #4444ff;
+}
+
+.map-filters button.viral-btn.active {
+  background: #ffaa00;
+  border-color: #ffaa00;
+  color: #000;
+}
+
+/* Map Wrapper */
+.map-wrapper {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  margin-bottom: 20px;
+  background: white;
+}
+
+/* Map Popup Styling */
+.map-popup {
+  min-width: 220px;
+  padding: 5px;
+}
+
+.map-popup h4 {
+  margin: 0 0 12px 0;
+  font-size: 1.4rem;
+  color: #333;
+  text-transform: uppercase;
+  font-weight: bold;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #eee;
+}
+
+.map-popup p {
+  margin: 6px 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #555;
+}
+
+.map-popup strong {
+  color: #333;
+  font-weight: 600;
+}
+
+/* Urgency Colors */
+.urgency-low { 
+  color: #28a745; 
+  font-weight: bold;
+}
+
+.urgency-medium { 
+  color: #ffc107; 
+  font-weight: bold;
+}
+
+.urgency-high { 
+  color: #ff9800; 
+  font-weight: bold;
+}
+
+.urgency-emergency { 
+  color: #f44336; 
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+/* Map Legend */
+.map-legend {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.map-legend h4 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  font-size: 1.3rem;
+  color: #333;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  font-size: 1rem;
+}
+
+.legend-circle {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+
+.legend-divider {
+  border-top: 1px solid #ddd;
+  margin: 15px 0;
+}
+
+.map-legend p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+/* Loading State */
+.map-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 600px;
+  background: white;
+  border-radius: 12px;
+}
+
+.map-loading p {
+  margin-top: 20px;
+  font-size: 1.1rem;
+  color: #666;
+}
+
+.spinner {
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #333;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Leaflet Map Circle Hover Effects */
+.leaflet-interactive:hover {
+  stroke-width: 3 !important;
+  fill-opacity: 1 !important;
+  cursor: pointer;
+  filter: brightness(1.1);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .disease-map-container {
+    padding: 10px;
+  }
+
+  .map-header h1 {
+    font-size: 2rem;
+  }
+
+  .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .summary-card .count {
+    font-size: 2rem;
+  }
+
+  .map-filters {
+    justify-content: center;
+  }
+
+  .map-filters button {
+    padding: 8px 16px;
+    font-size: 0.9rem;
+  }
+
+  .map-wrapper {
+    border-radius: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .map-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .summary-card .count {
+    font-size: 1.8rem;
+  }
+}
+
+/* Leaflet Popup Custom Styling */
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}
+
+.leaflet-popup-content {
+  margin: 15px;
+  font-family: inherit;
+}
+
+.leaflet-popup-tip {
+  box-shadow: 0 3px 14px rgba(0,0,0,0.4);
+}
